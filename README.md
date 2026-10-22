@@ -46,6 +46,7 @@ LLM_MODEL=<model id>
 ```
 COGITEX_VERIFY_URL=<cogitex Vercel URL>/api/auth/suite-verify
 COGITEX_PROVISION_URL=<cogitex Vercel URL>/api/auth/suite-provision
+VIDE_SSO_ALLOWED_HOSTS=<cogitex Vercel host>,<vide Vercel host>   # without this the planner handoff is silently refused
 NEXT_PUBLIC_USE_MOCKS=true          # demo fleet without a backend; flip off for live telemetry
 ```
 
