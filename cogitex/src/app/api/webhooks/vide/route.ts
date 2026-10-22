@@ -5,6 +5,9 @@ import { organizations } from "@/server/db/schema";
 import { faultsWriteService, videCacheService } from "@/server/services/faults";
 import { machinesWriteService } from "@/server/services/machines";
 
+/** Neon cold-wake + ~60 event writes can exceed the default window on serverless. */
+export const maxDuration = 60;
+
 /**
  * VIDE â†’ app webhook (M4). Machine-to-machine, shared-secret auth:
  *   - production: requires WEBHOOK_SECRET set and `x-webhook-secret` header equal.

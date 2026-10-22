@@ -21,6 +21,8 @@ import { VIB_FAIL_MM_S, TEMP_FAIL_C } from "@/lib/constants";
 import { setSimEnabled, simEnabled } from "@/lib/sim/state";
 
 export const dynamic = "force-dynamic";
+/** Cogitex ingest + Neon wake from suspend can legitimately take ~30-45s on cold serverless. */
+export const maxDuration = 60;
 
 async function pushToCogitex(): Promise<Response> {
   const t = Date.now();
@@ -87,7 +89,7 @@ async function pushToCogitex(): Promise<Response> {
       },
       body: JSON.stringify(body),
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(45_000),
     });
     const json = (await res.json().catch(() => null)) as { results?: { result: string }[] } | null;
     const results = json?.results ?? [];
