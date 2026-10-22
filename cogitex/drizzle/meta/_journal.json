@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792505999243,
+      "tag": "0000_curved_the_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792506759710,
+      "tag": "0001_organic_warbound",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792509649369,
+      "tag": "0002_shallow_trish_tilby",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792509921730,
+      "tag": "0003_eager_wendell_rand",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792512106025,
+      "tag": "0004_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792513894577,
+      "tag": "0005_faults_and_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792517370411,
+      "tag": "0006_0006_marketplace",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792518542067,
+      "tag": "0007_0007_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792519866845,
+      "tag": "0008_0008_agent_logs",
+      "breakpoints": true
+    }
+  ]
+}

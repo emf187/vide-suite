@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.*
+
+# next.js build output
+.next/
+out/
+build/
+
+# env - NEVER commit real values (see each app's .env.example)
+.env
+.env.local
+.env.*.local
+
+# persistent local dev data + sim state
+.pglite/
+.sim-state.json
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# misc / os / editor
+.DS_Store
+Thumbs.db
+*.log
+*.pem
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.vercel/

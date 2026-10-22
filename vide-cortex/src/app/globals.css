@@ -1,0 +1,399 @@
+/*
+ * VIDE CORTEX — design system V2 (suite-aligned).
+ *
+ * Every colour comes from the tokens below via Tailwind classes
+ * (bg-panel, text-accent, border-line …) — never hardcode a hex in a component.
+ * Canvas charts read the --chart-* tokens at draw time (src/components/charts/palette.ts).
+ *
+ * Character rules: DM Sans for UI text; JetBrains Mono reserved for tags, ids
+ * and numerals. Hairline borders + soft shadows on paper-white panels (light by
+ * default), warm-charcoal dark variant retained. Accent is the cogitex orange.
+ * Motion: 160ms, gentle ease — calm control room, not a pixel terminal.
+ */
+@import "tailwindcss";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+/* ---------- Theme tokens: light (default) ---------- */
+:root,
+[data-theme="light"] {
+  --bg: #faf9f7;
+  --panel: #ffffff;
+  --panel-hi: #f4f2ee; /* hovered / selected rows, toast, user chat bubble */
+  --line: #e9e6e0;
+  --line-lit: #d4d0c8;
+  --ink: #26231d;
+  --dim: #6e6a61;
+  --dim2: #a39e93;
+
+  --grad1: #ff6a1a;
+  --grad2: #ffa63f;
+  --accent: #f5871f;
+  --accent-hi: #ff9d3f;
+  --on-accent: #ffffff;
+
+  --ok: #0d7a3f;
+  --warn: #8a6d00;
+  --high: #b25e00;
+  --crit: #d00000;
+  --edge: #0d7a3f;
+  --cloud: #2f5fb3;
+
+  --ok-bg: #e3f4ea;
+  --ok-line: #9fd3b3;
+  --warn-bg: #fbf3d6;
+  --warn-line: #d9c37a;
+  --crit-bg: #fbe4e4;
+  --crit-line: #e6a3a3;
+  --cloud-bg: #e8eefa;
+  --cloud-line: #a9bde3;
+
+  --grid: rgba(38, 35, 29, 0.008); /* whisper-faint 4px grid texture */
+
+  --chart-bg: var(--bg);
+  --chart-grid: var(--line);
+  --chart-text: var(--dim);
+  --chart-muted: var(--dim2);
+  --chart-temp: #e85d04;
+  --chart-vib: #d00000;
+  --chart-power: #0d7a3f;
+  --chart-load: #2f5fb3;
+  --chart-sweep: rgba(245, 135, 31, 0.15);
+  --chart-sweep-0: rgba(245, 135, 31, 0);
+
+  --shadow-1: 0 1px 2px rgba(38, 35, 29, 0.05), 0 2px 8px rgba(38, 35, 29, 0.04);
+  --shadow-2: 0 4px 18px rgba(38, 35, 29, 0.09);
+
+  --dur: 160ms;
+  --ease: cubic-bezier(0.3, 0.8, 0.3, 1);
+
+  color-scheme: light;
+}
+
+/* ---------- Theme tokens: dark (warm charcoal) ---------- */
+[data-theme="dark"] {
+  --bg: #14120f;
+  --panel: #1c1916;
+  --panel-hi: #242019;
+  --line: #2c2925;
+  --line-lit: #45413a;
+  --ink: #eae7e0;
+  --dim: #98938a;
+  --dim2: #655f56;
+
+  --grad1: #ff3d1a;
+  --grad2: #ff9d1a;
+  --accent: #ff8a2a;
+  --accent-hi: #ffa04e;
+  --on-accent: #14120f;
+
+  --ok: #3ddc84;
+  --warn: #ffd020;
+  --high: #ffb020;
+  --crit: #ff5252;
+  --edge: #3ddc84;
+  --cloud: #6aa8ff;
+
+  --ok-bg: #14251a;
+  --ok-line: #23503a;
+  --warn-bg: #261f0d;
+  --warn-line: #4d4220;
+  --crit-bg: #2b1512;
+  --crit-line: #4c211d;
+  --cloud-bg: #121722;
+  --cloud-line: #274268;
+
+  --grid: rgba(255, 255, 255, 0.01);
+
+  --chart-temp: #ff8a2a;
+  --chart-vib: #ff5252;
+  --chart-power: #3ddc84;
+  --chart-load: #6aa8ff;
+  --chart-sweep: rgba(255, 138, 42, 0.2);
+  --chart-sweep-0: rgba(255, 138, 42, 0);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 10px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 4px 20px rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
+}
+
+/* ---------- Tailwind mapping ---------- */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-hi: var(--panel-hi);
+  --color-line: var(--line);
+  --color-line-lit: var(--line-lit);
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-dim2: var(--dim2);
+  --color-accent: var(--accent);
+  --color-accent-hi: var(--accent-hi);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-high: var(--high);
+  --color-crit: var(--crit);
+  --color-edge: var(--edge);
+  --color-cloud: var(--cloud);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-line: var(--ok-line);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-line: var(--warn-line);
+  --color-crit-bg: var(--crit-bg);
+  --color-crit-line: var(--crit-line);
+  --color-cloud-bg: var(--cloud-bg);
+  --color-cloud-line: var(--cloud-line);
+
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+  --font-sans: var(--font-dm), "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@theme {
+  /* Tile value flash when a number changes — now a smooth machined pulse. */
+  --animate-tick: tick 0.5s var(--ease);
+  /* LIVE indicator. */
+  --animate-blink: blink 1s steps(2) infinite;
+
+  @keyframes tick {
+    0% { color: var(--accent); }
+    100% { color: var(--ink); }
+  }
+  @keyframes blink {
+    50% { opacity: 0.25; }
+  }
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 4px);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Suite motion: everything eases, nothing stepps. */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition:
+      background-color var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      color var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease);
+  }
+
+  /* Numerals, ids and tags read in mono — the instrument identity. */
+  .tnum {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Sidebar tab icons — consistent 15px line style across the suite. */
+.nav-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: currentColor;
+  opacity: 0.9;
+}
+
+/* Phone-first polish: stack stat tiles on small screens, fat touch targets. */
+@media (max-width: 480px) {
+  .tile,
+  .Card {
+    /* nothing structural — Tailwind grids already reflow; keep cards breathable */
+  }
+  button,
+  [role="button"] {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* ≥16px blocks iOS zoom-on-focus */
+  }
+  .nav-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ---------- Auth page: gradient mesh + glass card ---------- */
+.auth-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 500px at 10% -10%, color-mix(in srgb, var(--grad1) 30%, transparent), transparent 55%),
+    radial-gradient(700px 450px at 115% 115%, color-mix(in srgb, var(--grad2) 25%, transparent), transparent 55%),
+    radial-gradient(500px 350px at 55% 45%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 50%),
+    var(--bg);
+}
+.auth-mesh::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='100%25' height='100%25' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: 40px 40px;
+  mask-image: linear-gradient(#000 60%, transparent);
+}
+.auth-glass {
+  position: relative;
+  z-index: 1;
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+}
+.auth-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--grad1, #ff6a1a), var(--grad2, #ffa63f));
+  color: var(--on-accent, #fff);
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: -1px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--grad1) 45%, transparent);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 24px 0 18px;
+  color: var(--dim2);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.auth-btn-primary {
+  background: linear-gradient(135deg, var(--grad1, #ff6a1a), var(--grad2, #ffa63f));
+  color: var(--on-accent, #fff);
+  border: none;
+}
+.auth-btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--grad1) 35%, transparent);
+}
+.auth-btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+}
+.auth-btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent-soft, rgba(245,135,31,0.12)), transparent);
+}
+.auth-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--crit-line);
+  background: var(--crit-bg);
+  color: var(--crit);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.auth-banner::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--crit);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--crit) 25%, transparent);
+}
+.auth-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel-hi, #f4f2ee) 70%, transparent);
+  color: var(--ink);
+  font-size: 14px;
+  transition: border-color var(--dur, 160ms) var(--ease, ease), box-shadow var(--dur, 160ms) var(--ease, ease);
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--ring, 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent));
+}
+.auth-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 7px;
+  display: block;
+}
+
+/* ---------- Print (Predictions report) ---------- */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}

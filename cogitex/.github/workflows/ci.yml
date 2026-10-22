@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate migrations (drift check)
+        run: npm run db:generate
+      - name: Fail if migrations drifted without a commit
+        run: git diff --exit-code -- drizzle
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit + tenancy tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

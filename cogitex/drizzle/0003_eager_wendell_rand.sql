@@ -1,0 +1,1 @@
+ALTER TABLE "schedules" ADD COLUMN "runtime_baseline_hours" numeric(12, 1);
