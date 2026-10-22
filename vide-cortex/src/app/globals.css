@@ -256,10 +256,7 @@
 
 /* ---------- Auth page: gradient mesh + glass card ---------- */
 .auth-mesh {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  position: relative;
   background:
     radial-gradient(900px 500px at 10% -10%, color-mix(in srgb, var(--grad1) 30%, transparent), transparent 55%),
     radial-gradient(700px 450px at 115% 115%, color-mix(in srgb, var(--grad2) 25%, transparent), transparent 55%),
