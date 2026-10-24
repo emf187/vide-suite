@@ -36,6 +36,20 @@ export const INSERT_BLOCKS: ReadonlyArray<{ kind: InsertBlockKind; label: string
 /** Editor cap matches the machine-notes body cap (one shared limit). */
 export const NOTE_BODY_MAX = 60000;
 
+/** Toolbar tooltips (title attributes) — shared by the editor surface and docs. */
+export const TOOL_TIPS: Record<InsertBlockKind, string> = {
+  bold: "Wrap the selection in **bold** (click again to unwrap)",
+  italic: "Wrap the selection in *italic* (click again to unwrap)",
+  inlinecode: "Wrap the selection in `code` ticks",
+  link: "Turn the selection into [text](link)",
+  heading: "Toggle a ## section heading on this line",
+  bullets: "Toggle a bullet list over the selected lines",
+  numbered: "Toggle a numbered list over the selected lines",
+  table: "Insert a 3×3 table skeleton at the cursor",
+  rule: "Insert a horizontal rule at the cursor",
+  task: "Toggle a - [ ] task over the selected lines",
+};
+
 const SKELETONS: Record<InsertBlockKind, string> = {
   bold: "**bold**\n",
   italic: "*italic*\n",

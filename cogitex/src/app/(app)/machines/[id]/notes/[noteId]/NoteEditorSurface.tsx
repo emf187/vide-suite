@@ -12,7 +12,7 @@
  * the editor still fully works, just without cursor placement.
  */
 import { useRef, useState, type MouseEvent } from "react";
-import { INSERT_BLOCKS, NOTE_BODY_MAX } from "@/lib/note-editor";
+import { INSERT_BLOCKS, NOTE_BODY_MAX, TOOL_TIPS } from "@/lib/note-editor";
 import { insertSnippet, toggleLinePrefix, wrapInline, wrapLink } from "@/lib/note-editing";
 
 type EditFn = (text: string, selStart: number, selEnd: number) => { text: string; selStart: number; selEnd: number };
@@ -67,20 +67,34 @@ export default function NoteEditorSurface({ body, placeholder }: { body: string;
 
   return (
     <>
-      <div className="row" style={{ flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+      <div className="row" style={{ flexWrap: "wrap", gap: 6, marginBottom: 10, alignItems: "center" }}>
         {INSERT_BLOCKS.map((b) => (
-          <button
-            key={b.kind}
-            type="submit"
-            name="intent"
-            value={`append:${b.kind}`}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={toolbarClick(b.kind)}
-            className="secondary"
-            style={{ fontSize: 10, padding: "4px 10px", minWidth: b.label.length <= 2 ? 36 : undefined, fontWeight: b.label.length <= 2 ? 700 : 400 }}
-          >
-            {b.label}
-          </button>
+          <span key={b.kind} style={{ display: "contents" }}>
+            {/* divider between the formatting group and the block-insert group */}
+            {b.kind === "heading" ? (
+              <span aria-hidden="true" style={{ width: 1, height: 18, background: "var(--line)", margin: "0 4px", display: "inline-block" }} />
+            ) : null}
+            <button
+              type="submit"
+              name="intent"
+              value={`append:${b.kind}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={toolbarClick(b.kind)}
+              className="secondary"
+              title={TOOL_TIPS[b.kind]}
+              aria-label={TOOL_TIPS[b.kind]}
+              style={{
+                fontSize: 11,
+                padding: "4px 10px",
+                minWidth: b.label.length <= 2 ? 34 : undefined,
+                fontWeight: b.kind === "bold" ? 700 : undefined,
+                fontStyle: b.kind === "italic" ? "italic" : undefined,
+                fontFamily: b.kind === "inlinecode" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : undefined,
+              }}
+            >
+              {b.label}
+            </button>
+          </span>
         ))}
         <span style={{ fontSize: 10, color: "var(--dim2)", marginLeft: "auto" }}>
           {words} words · {value.length}/{NOTE_BODY_MAX}
