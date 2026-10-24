@@ -838,3 +838,45 @@ inline grid editing, item 4 demo-mode purchase module (Paystack test keys),
 item 5 threading the agent through all of it ("show UKR chiller's last
 service and spend" — the pitch moment).
 
+## UPGRADE SPRINT item 2 — Notes & docs with imports + media attachments ✅
+
+**Commit:** `machine notes — markdown notes + MD/TXT/CSV/XLSX import into the shared file-store (migration 0010 machine_notes), document preview page`
+
+- **NOTES / DOCS tab is a new surface** on the machine profile: typed
+  Markdown notes (title + body, 60k-char cap), rendered server-side by a
+  new escape-first renderer (`src/lib/markdown.ts`) — headings, bold,
+  italic, inline code, links (http(s)/same-origin only), lists,
+  blockquotes, code fences. Raw HTML can NEVER survive rendering
+  (`<script>` test proves it); zero client JS.
+- **One file-store rule:** importing .md/.txt/.csv/.xlsx (≤5 MB) lands the
+  ORIGINAL bytes in the existing document store (bytea, always
+  downloadable) AND creates a self-contained note. MD/TXT come in
+  verbatim; CSV/XLSX become a row-capped markdown table (first 100 data
+  rows) with an explicit "N more rows truncated" pointer.
+- **Media attachments stay on ATTACHMENTS** (the renamed documents tab,
+  now with PREVIEW buttons). New preview page
+  `/machines/[id]/docs/[documentId]`: images inline, PDF in the browser
+  viewer (iframe), CSV/XLSX as server-rendered tables (200-row cap), text
+  verbatim, DOCX/unknown get an honest download-only card. No data faked,
+  nothing silently hidden.
+- Progressive enhancement intact (plain server actions); audit entries
+  `machine.note_added` / `machine.note_removed`; only `plan.manage`
+  deletes; tenancy hardened on every path (foreign-org machine →
+  `machine_not_found`).
+- Dependency added: `xlsx` (SheetJS) — the one new package the sprint
+  needs; everything else is dependency-free (CSV parser existed since M1).
+
+**Tests/verification:** tsc clean; **156 passing (from 142; 14 new)** —
+markdown renderer security (script/bold-in-fence/javascript-link attacks),
+table truncation math, notes CRUD + audit + soft-delete, body size and
+title fallbacks, cross-org invisibility for list/write/remove, real .md
+import (document row verified), 150-row CSV truncated at 100 with cap
+report, real SheetJS-built .xlsx workbook imported by sheet name,
+unsupported/empty refusals with guidance, foreign-org import refusal.
+
+**Next — item 3:** spreadsheet-style inline grid editing where profiles
+need it, item 4 demo-mode purchase module (Paystack test keys + fake
+ledger + DEMO banner), item 5 agent threading ("show UKR chiller's last
+service and spend" — the pitch moment).
+
+

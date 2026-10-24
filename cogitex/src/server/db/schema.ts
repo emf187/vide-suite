@@ -755,3 +755,35 @@ export const machineExpenses = pgTable("machine_expenses", {
 ]);
 
 export type MachineExpense = typeof machineExpenses.$inferSelect;
+
+/* =====================================================================
+ * M9 — Notes & documents (sprint item 2)
+ * One notes surface per machine: typed/Markdown notes stay in the row,
+ * imported files (.md/.txt/.csv/.xlsx) land BOTH in the document store
+ * (the same bytea file-store, always downloadable) and as a self-contained
+ * note body (markdown for MD/TXT, an inlined markdown TABLE for CSV/XLSX,
+ * row-capped so a 10k-row sheet can't freeze the page). PDF/DOCX are
+ * documents with PREVIEW pages (PDF embeds natively, DOCX is download-only).
+ * ===================================================================== */
+
+export const machineNotes = pgTable("machine_notes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  machineId: uuid("machine_id").notNull().references(() => machines.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  /** markdown body; imported CSV/XLSX notes carry a row-capped markdown table inline */
+  body: text("body").notNull(),
+  /** typed | import_md | import_txt | import_csv | import_xlsx | agent */
+  source: text("source").notNull().default("typed"),
+  /** the stored original file for imports (same document_blobs file-store) */
+  documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("machine_notes_machine_idx").on(t.machineId, t.createdAt),
+  index("machine_notes_org_created_idx").on(t.organizationId, t.createdAt),
+]);
+
+export type MachineNote = typeof machineNotes.$inferSelect;

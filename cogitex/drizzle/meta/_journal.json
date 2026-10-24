@@ -71,6 +71,13 @@
       "when": 1792846055541,
       "tag": "0009_lumpy_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792846588001,
+      "tag": "0010_cool_devos",
+      "breakpoints": true
     }
   ]
 }

@@ -278,6 +278,63 @@ export async function deleteMachineExpenseAction(form: FormData): Promise<void> 
   redirect(`/machines/${machineId}?tab=maintenance&expense=removed`);
 }
 
+/* ---------------- notes / docs (sprint item 2) ---------------- */
+
+export async function addMachineNoteAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  const machineId = tagOf(form);
+  const title = String(form.get("title") ?? "").trim();
+  const body = String(form.get("body") ?? "");
+  if (!body.trim()) redirect(`/machines/${machineId}?tab=notes&note_error=body`);
+  const { notesService } = await import("@/server/services/machine-notes");
+  try {
+    await notesService.add(ctx, machineId, { title: title || "Untitled note", body, source: "typed" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}?tab=notes&note_error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/machines/${machineId}`);
+  redirect(`/machines/${machineId}?tab=notes&note=added`);
+}
+
+export async function importMachineNoteAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  const machineId = tagOf(form);
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) redirect(`/machines/${machineId}?tab=notes&note_error=file`);
+  try {
+    const bytes = Buffer.from(await (file as File).arrayBuffer());
+    const { notesService } = await import("@/server/services/machine-notes");
+    await notesService.importFile(ctx, machineId, {
+      name: (file as File).name,
+      mimeType: (file as File).type,
+      bytes,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}?tab=notes&note_error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/machines/${machineId}`);
+  redirect(`/machines/${machineId}?tab=notes&note=imported`);
+}
+
+export async function deleteMachineNoteAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  // viewers may not delete; others may (consistent with documents ownership rule)
+  const machineId = tagOf(form);
+  const noteId = String(form.get("noteId") ?? "");
+  if (!can(ctx.roles, "plan.manage")) redirect(`/machines/${machineId}?tab=notes&note_error=forbidden`);
+  const { notesService } = await import("@/server/services/machine-notes");
+  try {
+    await notesService.remove(ctx, machineId, noteId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}?tab=notes&note_error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/machines/${machineId}`);
+  redirect(`/machines/${machineId}?tab=notes&note=removed`);
+}
+
 /* ---------------- CSV import ---------------- */
 
 export async function stageMachineImportAction(form: FormData): Promise<void> {

@@ -376,7 +376,7 @@ model varchar, gateway_ref text, token_usage jsonb, created_at`.
 output_summary jsonb, executed bool (write tools pre-execution are logged as proposed), result ('ok'|'denied'|'confirmed_pending'|'executed'),
 error, at`. Security property tested in CI: the model-supplied payload never overrides `Ctx`.
 
-### 3.11 Machine profile v2 — maintenance history & expenditure log (M8, June-sprint item 1)
+### 3.11 Machine profile v2 — maintenance history & expenditure log (migration 0009, sprint item 1)
 
 **machine_expenses** (org, append-friendly: soft-delete + re-add, never edited)
 `id, organization_id, machine_id FK→machines CASCADE, work_order_id FK→work_orders SET NULL NULL,
@@ -395,6 +395,25 @@ subcontractor invoices). Machine-level summary = WO-derived + manual, with a 365
 variant, last-service stamp (latest concluded WO by actualEnd/closedAt) and open/concluded
 counts. Tenancy: every read and write is org-scoped; `add` refuses machines outside the org
 (`machine_not_found`). Add/remove are audited (`machine.expense_added` / `machine.expense_removed`).
+
+### 3.12 Machine notes & documents (migration 0010, sprint item 2)
+
+**machine_notes** (org, soft-delete + audit)
+`id, organization_id, machine_id FK CASCADE, title, body text (markdown),
+source ('typed'|'import_md'|'import_txt'|'import_csv'|'import_xlsx'|'agent'),
+document_id FK→documents SET NULL NULL, deleted_at, created_by, audit cols`.
+INDEXES: (machine_id, created_at), (organization_id, created_at).
+
+**The one file-store rule:** imported files (.md/.txt/.csv/.xlsx ≤5 MB) land BOTH as the
+original `documents` row (same bytea file-store — always downloadable at `/api/documents/[id]`)
+AND as a self-contained `machine_notes` row: MD/TXT verbatim (60k-char cap); CSV/XLSX become a
+row-capped markdown TABLE (first 100 data rows inline on notes; the preview page renders the
+first 200 rows server-side; truncation is stated in the note). Unsupported/ambiguous
+attachments belong on ATTACHMENTS with a PDF (browser iframe) / DOCX / other
+download-only preview page (`/machines/[id]/docs/[documentId]`). Markdown is rendered
+escape-first server-side (`src/lib/markdown.ts`) — raw HTML can never survive, links are
+restricted to http(s)/same-origin. Tenancy: notes and imports refuse foreign-org machines
+(`machine_not_found`); add/remove audited (`machine.note_added` / `machine.note_removed`).
 
 ## 4. State machines
 
