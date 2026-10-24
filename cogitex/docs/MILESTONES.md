@@ -874,9 +874,53 @@ import (document row verified), 150-row CSV truncated at 100 with cap
 report, real SheetJS-built .xlsx workbook imported by sheet name,
 unsupported/empty refusals with guidance, foreign-org import refusal.
 
-**Next — item 3:** spreadsheet-style inline grid editing where profiles
+**Next - item 3:** spreadsheet-style inline grid editing where profiles
 need it, item 4 demo-mode purchase module (Paystack test keys + fake
 ledger + DEMO banner), item 5 agent threading ("show UKR chiller's last
-service and spend" — the pitch moment).
+service and spend" - the pitch moment).
+
+## UPGRADE SPRINT item 3 - spreadsheet-grid editing where profiles need it
+
+**Commit:** `grid editing - rated-specs matrix on machine edit + BOM components grid on PARTS (no new tables, no client JS)`
+
+- **No-JS grids, done properly:** a "grid" is a plain HTML table of inputs
+  submitted by ONE server action - progressive enhancement intact (the
+  no-JS protocol stays). Pure parsers live in `src/lib/grid.ts`
+  (`parseSpecsGrid` / `parseComponentGrid`), so the tricky pairing rules are
+  unit-tested, not buried in JSX.
+- **Rated-specs matrix** on `/machines/[id]/edit`: every key of the
+  machine's `rated_specs` jsonb renders as an editable key/value row + 3
+  blank add-rows; a save is a FULL REPLACEMENT (a blank key or value removes
+  the spec) since the grid renders the complete current set. Keys lowercased
+  & capped; numbers stay numbers. New service
+  `machinesWriteService.updateRatedSpecs` (tenant-guarded
+  `machine_not_found`, audit `machine.specs_updated` with the resulting key
+  list). `update()` now persists `ratedSpecs` too when passed.
+- **BOM components grid** on the PARTS tab (planners only): existing
+  machine_components rows edit in place (name/tag/kind/note), a DEL checkbox
+  removes a row, 3 blank rows add components - one SAVE GRID submit carries
+  update/delete/insert with per-row audits (`machine.component_updated` /
+  `machine.component_removed` / `machine.component_added`). Unchecked
+  checkboxes submit nothing, so the remove control is indexed
+  (`comp_remove_<rowIndex>`) and resolved by key-scan - the pairing cannot
+  shift when a middle row is ticked. Guessed/foreign ids throw
+  `component_not_found` (org AND machine matched) - never edit blind. The
+  standalone ADD COMPONENT form is folded into the grid (action removed).
+- **Fix while wiring:** sprint items 1/2 error banners were silently dead -
+  actions redirect with `expense_error=` / `note_error=` query keys but the
+  profile page read camelCase `sp.expenseError` / `sp.noteError` (Next.js
+  does not camelize search params). Both now read the literal keys.
+
+**Tests/verification:** tsc clean; **168 passing (from 156; 12 new)** -
+pairing rules (blank removals, numeric conversion, lowercase+dedupe
+last-wins), indexed-checkbox alignment, full-replacement specs save with
+audit key list, `update()` persistence, cross-org guard, machine-scoped
+`component_not_found` for update/remove/guessed ids, and a simulated
+partial-grid save (rename two / DEL one / blank add-rows) saying 1 updated - 0
+added - 1 removed, listing the survivors.
+
+**Next:** item 4 - demo-mode purchase module (Paystack test keys, fake
+ledger, clear DEMO banner), then item 5 - thread the agent through all of
+it ("show UKR chiller's last service and spend" - the pitch moment).
 
 

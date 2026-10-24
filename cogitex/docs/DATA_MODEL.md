@@ -415,6 +415,28 @@ escape-first server-side (`src/lib/markdown.ts`) — raw HTML can never survive,
 restricted to http(s)/same-origin. Tenancy: notes and imports refuse foreign-org machines
 (`machine_not_found`); add/remove audited (`machine.note_added` / `machine.note_removed`).
 
+### 3.13 No-JS grid editing (sprint item 3; no migration)
+
+"Spreadsheet" editing is implemented with **no new tables and no client JS**: a grid is a plain
+HTML table of `<input>`s submitted by ONE server action (progressive enhancement intact).
+
+- **Rated-specs matrix** (`/machines/[id]/edit`, card *RATED SPECS MATRIX*): every key of
+  `machines.rated_specs` jsonb renders as an editable key/value row + 3 blank add-rows. A save is
+  a **full replacement** — a blank key or blank value deletes that spec — because the grid always
+  renders the complete current set. Keys are lowercased (≤60 chars, values ≤200); numeric strings
+  store as numbers (same rule as the create form's `rated_*`). Service:
+  `machinesWriteService.updateRatedSpecs` (tenant-guarded, audit `machine.specs_updated` keeps the
+  resulting key list); paired-input parsing lives in pure `src/lib/grid.ts` (`parseSpecsGrid`).
+- **BOM components grid** (PARTS tab, planners only): existing `machine_components` rows are
+  editable in place (name/tag/kind/note ≤120/40/40/300), a DEL checkbox removes a row, 3 blank
+  rows add components — one `SAVE GRID` submit handles update/delete/insert with per-row audits
+  (`machine.component_updated` / `machine.component_removed` / `machine.component_added`).
+  Unchecked checkboxes submit nothing, so the remove control is named `comp_remove_<rowIndex>`
+  and resolved by key scan (`parseComponentGrid`); text inputs always submit and pair by index.
+  Stale/guessed component ids throw `component_not_found` (org **and** machine matched) — a grid
+  row can never blindly rewrite another machine's component. The standalone ADD COMPONENT form
+  was folded into the grid (action removed).
+
 ## 4. State machines
 
 ### 4.1 Machine lifecycle

@@ -7,6 +7,7 @@ import { requireCtx } from "@/server/ctx";
 import { can } from "@/server/policies";
 import { documentsService } from "@/server/services/documents";
 import { machineImportService } from "@/server/services/machine-import";
+import { parseComponentGrid, parseSpecsGrid } from "@/lib/grid";
 import { machinesService, machinesWriteService } from "@/server/services/machines";
 import { areasService, sitesService } from "@/server/services/sites";
 import { nairaToKobo } from "@/lib/money";
@@ -201,20 +202,70 @@ export async function deleteDocumentAction(form: FormData): Promise<void> {
   redirect(`/machines/${machineId}?tab=documents&deleted=1`);
 }
 
-export async function addComponentAction(form: FormData): Promise<void> {
+/* ---------------- grid editing (sprint item 3) ---------------- */
+
+/** Rated-specs matrix save: one submit rewrites the whole jsonb (full replace). */
+export async function saveSpecsGridAction(form: FormData): Promise<void> {
   const ctx = await requireCtx();
+  assertRole(ctx);
   const machineId = tagOf(form);
-  const name = String(form.get("name") ?? "").trim();
-  if (!name) redirect(`/machines/${machineId}?tab=parts&error=fields`);
-  const { componentsService } = await import("@/server/services/machine-extras");
-  await componentsService.add(ctx, machineId, {
-    name,
-    tag: opt(form, "tag"),
-    kind: opt(form, "kind"),
-    note: opt(form, "note"),
-  });
+  const specs = parseSpecsGrid(form);
+  try {
+    await machinesWriteService.updateRatedSpecs(ctx, machineId, specs);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}/edit?error=${encodeURIComponent(message)}`);
+  }
   revalidatePath(`/machines/${machineId}`);
-  redirect(`/machines/${machineId}?tab=parts&added=1`);
+  redirect(`/machines/${machineId}/edit?saved=specs`);
+}
+
+/**
+ * PARTS/BOM grid save: one submit carries updates, deletes and blank-row
+ * inserts. Rows are processed in submission order; a failing row aborts the
+ * rest of the save — auditors never see a half-applied grid without a flag.
+ */
+export async function saveComponentGridAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  assertRole(ctx);
+  const machineId = tagOf(form);
+  const machine = await machinesService.byId(ctx, machineId);
+  if (!machine) redirect("/machines?error=not_found");
+  const rows = parseComponentGrid(form);
+  const { componentsService } = await import("@/server/services/machine-extras");
+  let updatedCount = 0;
+  let addedCount = 0;
+  let removedCount = 0;
+  for (const row of rows) {
+    try {
+      if (row.componentId && row.remove) {
+        await componentsService.remove(ctx, machineId, row.componentId);
+        removedCount++;
+      } else if (row.componentId && row.name) {
+        // Blank-named existing rows are skipped (no silent data loss).
+        await componentsService.update(ctx, machineId, row.componentId, {
+          name: row.name,
+          tag: row.tag || null,
+          kind: row.kind || undefined,
+          note: row.note || null,
+        });
+        updatedCount++;
+      } else if (!row.componentId && row.name) {
+        await componentsService.add(ctx, machineId, {
+          name: row.name,
+          tag: row.tag || undefined,
+          kind: row.kind || undefined,
+          note: row.note || undefined,
+        });
+        addedCount++;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      redirect(`/machines/${machineId}?tab=parts&grid_error=${encodeURIComponent(message)}`);
+    }
+  }
+  revalidatePath(`/machines/${machineId}`);
+  redirect(`/machines/${machineId}?tab=parts&grid=saved&updated=${updatedCount}&added=${addedCount}&removed=${removedCount}`);
 }
 
 /* ---------------- expenditure log (machine profile v2) ---------------- */

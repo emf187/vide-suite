@@ -7,15 +7,25 @@ import { getIntegrations } from "@/lib/integrations/factory";
 import { machinesService } from "@/server/services/machines";
 import { faultsService, videCacheService } from "@/server/services/faults";
 import { componentsService, listLinkedDevices, timelineService } from "@/server/services/machine-extras";
+import { maintenanceHistoryService } from "@/server/services/machine-history";
+import { notesService } from "@/server/services/machine-notes";
+import { renderMarkdown } from "@/lib/markdown";
 import { sitesService } from "@/server/services/sites";
 import { documentsService } from "@/server/services/documents";
 import { formatDateTime } from "@/lib/time";
+import { formatKobo } from "@/lib/money";
 import {
-  addComponentAction,
+  addMachineExpenseAction,
+  addMachineNoteAction,
   deleteDocumentAction,
+  deleteMachineExpenseAction,
+  deleteMachineNoteAction,
+  importMachineNoteAction,
+  saveComponentGridAction,
   transitionLifecycleAction,
   uploadDocumentAction,
 } from "../actions";
+import { COMPONENT_KINDS } from "@/lib/grid";
 
 export const metadata = { title: "Machine" };
 
@@ -24,8 +34,9 @@ const TABS = [
   ["health", "HEALTH"],
   ["energy", "ENERGY"],
   ["maintenance", "MAINTENANCE"],
+  ["notes", "NOTES / DOCS"],
   ["parts", "PARTS / BOM"],
-  ["documents", "DOCUMENTS"],
+  ["documents", "ATTACHMENTS"],
   ["faults", "FAULTS"],
   ["timeline", "TIMELINE"],
 ] as const;
@@ -51,7 +62,7 @@ export default async function MachineProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; error?: string; uploaded?: string; deleted?: string; added?: string; lifecycle?: string }>;
+  searchParams: Promise<{ tab?: string; error?: string; uploaded?: string; deleted?: string; added?: string; lifecycle?: string; expense?: string; expense_error?: string; note?: string; note_error?: string; grid?: string; grid_error?: string; updated?: string; removed?: string }>;
 }) {
   const ctx = await getCtx();
   if (!ctx) return null;
@@ -112,8 +123,10 @@ export default async function MachineProfilePage({
   async function loadDocs(c: Ctx, mId: string) {
     return documentsService.listForMachine(c, mId);
   }
-  async function loadParts(c: Ctx, mId: string) {
-    return componentsService.listForMachine(c, mId);
+  const loadParts = (c: Ctx, mId: string) => componentsService.listForMachine(c, mId);
+  const loadNotes = (c: Ctx, mId: string) => notesService.list(c, mId);
+  async function loadHistory(c: Ctx, mId: string) {
+    return maintenanceHistoryService.forMachine(c, mId);
   }
 
   return (
@@ -280,27 +293,36 @@ export default async function MachineProfilePage({
       {/* ------------------------------ ENERGY ------------------------------ */}
       {tab === "energy" ? <EnergyTab energy={await loadEnergy(ctx, videName)} videName={videName} /> : null}
 
+      {/* ------------------------------ NOTES ------------------------------- */}
+      {tab === "notes" ? (
+        <NotesTab
+          notes={await loadNotes(ctx, machine.id)}
+          machineId={machine.id}
+          mayPlan={mayPlan}
+          flags={{ note: sp.note, noteError: sp.note_error }}
+        />
+      ) : null}
+
       {/* ---------------------------- MAINTENANCE --------------------------- */}
       {tab === "maintenance" ? (
-        <>
-          <div className="card">
-            <div className="eyebrow">MAINTENANCE WINDOW</div>
-            <p className="empty-state" style={{ margin: 0 }}>
-              Corrective work orders, PM templates and schedules for this machine attach here in M2 (Planning & Work Orders).
-              History will stay auditable per the data model.
-            </p>
-          </div>
-          <div className="card">
-            <div className="eyebrow">RUNTIME READING</div>
-            <p style={{ fontSize: 12, margin: 0 }}>
-              Currently {machine.runtimeHours} h on the base counter{machine.runtimeBaseOffset !== "0" ? ` (+${machine.runtimeBaseOffset} h prior history)` : ""}. Metered runtime syncs with VIDE in M4.
-            </p>
-          </div>
-        </>
+        <MaintenanceTab
+          history={await loadHistory(ctx, machine.id)}
+          machineId={machine.id}
+          mayPlan={mayPlan}
+          currency={ctx.currency}
+          flags={{ expense: sp.expense, expenseError: sp.expense_error }}
+        />
       ) : null}
 
       {/* ------------------------------- PARTS ------------------------------ */}
-      {tab === "parts" ? <PartsTab parts={await loadParts(ctx, machine.id)} machineId={machine.id} mayPlan={mayPlan} /> : null}
+      {tab === "parts" ? (
+        <PartsTab
+          parts={await loadParts(ctx, machine.id)}
+          machineId={machine.id}
+          mayPlan={mayPlan}
+          flags={{ grid: sp.grid, gridError: sp.grid_error, updated: sp.updated, added: sp.added, removed: sp.removed }}
+        />
+      ) : null}
 
       {/* ----------------------------- DOCUMENTS ---------------------------- */}
       {tab === "documents" ? (
@@ -412,39 +434,388 @@ function EnergyTab({ energy, videName }: { energy: EnergyView | null; videName: 
   );
 }
 
-function PartsTab({ parts, machineId, mayPlan }: { parts: Awaited<ReturnType<typeof componentsService.listForMachine>>; machineId: string; mayPlan: boolean }) {
+const WO_STATUS_COLOR: Record<string, string> = {
+  completed: "var(--ok)", verified: "var(--ok)", closed: "var(--ok)",
+  cancelled: "var(--danger)", in_progress: "var(--warn)", on_hold: "var(--warn)",
+};
+
+function MaintenanceTab({
+  history,
+  machineId,
+  mayPlan,
+  currency,
+  flags,
+}: {
+  history: Awaited<ReturnType<typeof maintenanceHistoryService.forMachine>>;
+  machineId: string;
+  mayPlan: boolean;
+  currency: string;
+  flags: { expense?: string; expenseError?: string };
+}) {
+  const s = history.summary;
+  const today = new Date().toISOString().slice(0, 10);
   return (
     <>
+      {flags.expense === "added" ? (
+        <div className="card"><span className="ok-text">Expenditure logged — the machine's money story is up to date.</span></div>
+      ) : null}
+      {flags.expense === "removed" ? (
+        <div className="card"><span className="ok-text">Entry removed (audited). To correct an amount, log a fresh entry.</span></div>
+      ) : null}
+      {flags.expenseError ? (
+        <div className="card"><div className="eyebrow">EXPENDITURE NOT SAVED</div><span className="error-text">{flags.expenseError}</span></div>
+      ) : null}
+
+      {/* profile v2 header stats — the machine's money story at a glance */}
       <div className="card">
-        <div className="eyebrow">{`COMPONENTS / ${parts.length}`}</div>
-        {parts.length === 0 ? (
-          <p className="empty-state" style={{ margin: 0 }}>No components recorded. Add bearing housings, seals, drive belts — linked inventory items arrive in M3.</p>
+        <div className="eyebrow">MACHINE STORY</div>
+        <div className="row" style={{ flexWrap: "wrap", gap: 24 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--dim2)", letterSpacing: 1 }}>LAST SERVICE</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>
+              {s.lastServiceAt ? formatDateTime(s.lastServiceAt) : "never concluded"}
+            </div>
+            {s.lastServiceWoNumber ? (
+              <div style={{ fontSize: 11, color: "var(--dim2)" }}>{s.lastServiceWoNumber}</div>
+            ) : null}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--dim2)", letterSpacing: 1 }}>WORK ORDERS</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>
+              {s.openWorkOrders} open · {s.concludedWorkOrders} done
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--dim2)", letterSpacing: 1 }}>SPEND — LAST 12 MONTHS</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--warn)" }}>{formatKobo(s.last365dKobo, currency)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--dim2)", letterSpacing: 1 }}>LIFETIME SPEND</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{formatKobo(s.totalKobo, currency)}</div>
+            <div style={{ fontSize: 10, color: "var(--dim2)" }}>
+              WO labor {formatKobo(s.laborKobo, currency)} + parts {formatKobo(s.partsKobo, currency)} + logged {formatKobo(s.manualKobo, currency)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* maintenance history — every work order that ever touched this machine */}
+      <div className="card">
+        <div className="eyebrow">{`MAINTENANCE HISTORY / ${history.rows.length}`}</div>
+        {history.rows.length === 0 ? (
+          <p className="empty-state" style={{ margin: 0 }}>
+            No work orders yet. Create one from WORK ORDERS (machine link attaches its full history here automatically).
+          </p>
         ) : (
           <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["WO", "TITLE", "TYPE", "STATUS", "FINISHED", "DOWNTIME", "COST"].map((h) => (
+                  <th key={h} style={{ textAlign: "left", fontSize: 10, color: "var(--dim2)", padding: "2px 10px 6px 0", letterSpacing: 1 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
             <tbody>
-              {parts.map((p) => (
-                <tr key={p.id}>
-                  <td style={{ padding: "4px 10px 4px 0" }}>{p.tag ? <>{p.tag} · </> : null}{p.name}</td>
-                  <td style={{ color: "var(--dim2)", width: 120 }}>{p.kind}</td>
-                  <td style={{ color: "var(--dim2)" }}>{p.note ?? ""}</td>
+              {history.rows.map((r) => (
+                <tr key={r.wo.id}>
+                  <td style={{ padding: "4px 10px 4px 0", whiteSpace: "nowrap" }}>
+                    <Link href={`/work-orders/${r.wo.id}`} style={{ color: "var(--accent)", textDecoration: "none" }}>{r.wo.number}</Link>
+                  </td>
+                  <td style={{ padding: "4px 10px 4px 0" }}>{r.wo.title}</td>
+                  <td style={{ color: "var(--dim2)", width: 100 }}>{r.wo.type}</td>
+                  <td style={{ width: 110, color: WO_STATUS_COLOR[r.wo.status] ?? "var(--dim2)" }}>{r.wo.status}</td>
+                  <td style={{ color: "var(--dim2)", width: 140 }}>{r.finishedAt ? formatDateTime(r.finishedAt) : "—"}</td>
+                  <td style={{ color: "var(--dim2)", width: 80 }}>{r.wo.downtimeHours != null ? `${Number(r.wo.downtimeHours).toFixed(1)} h` : "—"}</td>
+                  <td style={{ width: 110 }}>{r.costKobo > 0 ? formatKobo(r.costKobo, currency) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p style={{ fontSize: 10, color: "var(--dim2)", margin: "10px 0 0" }}>
+          Cost = labor (Σ logged hours × rate) + issued parts at their issue-time unit cost. Rolled up from the work-order ledger — never hand-typed.
+        </p>
+      </div>
+
+      {/* expenditure logbook — the spend that bypasses work orders */}
+      <div className="card">
+        <div className="eyebrow">{`EXPENDITURE LOG / ${history.expenses.length}`}</div>
+        {history.expenses.length === 0 ? (
+          <p className="empty-state" style={{ margin: 0 }}>
+            No logged spend. Record cash service, fuel, hire, consumables, subcontractor invoices — everything a work order never captured.
+          </p>
+        ) : (
+          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["DATE", "KIND", "DESCRIPTION", "VENDOR / REF", "AMOUNT", ""].map((h, i) => (
+                  <th key={`${h}-${i}`} style={{ textAlign: "left", fontSize: 10, color: "var(--dim2)", padding: "2px 10px 6px 0", letterSpacing: 1 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.expenses.map((e) => (
+                <tr key={e.id}>
+                  <td style={{ padding: "4px 10px 4px 0", color: "var(--dim2)", whiteSpace: "nowrap", width: 120 }}>{formatDateTime(e.occurredAt, "Africa/Lagos").slice(0, 10)}</td>
+                  <td style={{ color: "var(--dim2)", width: 110 }}>{e.kind.replace(/_/g, " ")}</td>
+                  <td style={{ padding: "4px 10px 4px 0" }}>{e.description}</td>
+                  <td style={{ color: "var(--dim2)" }}>{[e.vendor, e.reference].filter(Boolean).join(" · ") || "—"}</td>
+                  <td style={{ width: 120, fontWeight: 600 }}>{formatKobo(e.amountKobo, currency)}</td>
+                  <td style={{ width: 46 }}>
+                    {mayPlan ? (
+                      <form action={deleteMachineExpenseAction}>
+                        <input type="hidden" name="machineId" value={machineId} />
+                        <input type="hidden" name="expenseId" value={e.id} />
+                        <button type="submit" className="secondary" style={{ fontSize: 9, padding: "2px 6px" }}>DEL</button>
+                      </form>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
       {mayPlan ? (
-        <form action={addComponentAction} className="card">
+        <form action={addMachineExpenseAction} className="card">
           <input type="hidden" name="machineId" value={machineId} />
-          <div className="eyebrow">ADD COMPONENT</div>
-          <div className="row">
-            <input name="name" placeholder="Name — e.g. Drive-end bearing" required style={{ flex: 1, minWidth: 200 }} />
-            <input name="tag" placeholder="Tag (optional)" style={{ maxWidth: 140 }} />
-            <input name="kind" placeholder="Kind — bearing/seal/belt…" />
-            <button type="submit">ADD</button>
+          <div className="eyebrow">LOG EXPENDITURE</div>
+          <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+            <input type="date" name="occurredAt" defaultValue={today} style={{ maxWidth: 150 }} />
+            <select name="kind" defaultValue="other" style={{ maxWidth: 160 }}>
+              {["service", "contract", "parts_direct", "consumable", "fuel", "hire", "calibration", "training", "other"].map((k) => (
+                <option key={k} value={k}>{k.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+            <input name="description" placeholder="What was bought — e.g. bearing repack LRS" required style={{ flex: 1, minWidth: 220 }} />
+            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount ₦" required style={{ maxWidth: 140 }} />
+            <input name="vendor" placeholder="Vendor (optional)" style={{ maxWidth: 160 }} />
+            <input name="reference" placeholder="Invoice / receipt № (optional)" style={{ maxWidth: 190 }} />
+            <button type="submit">LOG</button>
           </div>
+          <p style={{ fontSize: 10, color: "var(--dim2)", margin: "8px 0 0" }}>
+            Append-only: corrections delete the entry (audited) and re-log it. Work-order labor and parts costs roll up automatically — log only the spend that bypassed a work order.
+          </p>
         </form>
       ) : null}
+    </>
+  );
+}
+
+/** note-body → HTML (server-rendered markdown, escape-first). */
+function NoteBody({ body }: { body: string }) {
+  const html = renderMarkdown(body);
+  return (
+    <div
+      className="md-note"
+      style={{ fontSize: 12, lineHeight: 1.7 }}
+      // markdown renderer escapes everything first and emits only whitelisted tags
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+function NotesTab({
+  notes,
+  machineId,
+  mayPlan,
+  flags,
+}: {
+  notes: Awaited<ReturnType<typeof notesService.list>>;
+  machineId: string;
+  mayPlan: boolean;
+  flags: { note?: string; noteError?: string };
+}) {
+  return (
+    <>
+      {flags.note === "added" ? <div className="card"><span className="ok-text">Note saved.</span></div> : null}
+      {flags.note === "imported" ? (
+        <div className="card"><span className="ok-text">File imported — original stored on the ATTACHMENTS tab, note below.</span></div>
+      ) : null}
+      {flags.note === "removed" ? <div className="card"><span className="ok-text">Note removed (audited).</span></div> : null}
+      {flags.noteError ? (
+        <div className="card"><div className="eyebrow">NOTE NOT SAVED</div><span className="error-text">{flags.noteError}</span></div>
+      ) : null}
+
+      <div className="card">
+        <div className="eyebrow">{`KNOWLEDGE / ${notes.length}`}</div>
+        {notes.length === 0 ? (
+          <p className="empty-state" style={{ margin: 0 }}>
+            No notes yet. Write run-notes in Markdown, or import .md / .txt / .csv / .xlsx — spreadsheets come in as row-capped tables, the original file always stays on ATTACHMENTS.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {notes.map((n) => (
+              <div key={n.id} style={{ borderBottom: "1px solid var(--line3)", paddingBottom: 10 }}>
+                <div className="row" style={{ alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <div>
+                    <strong style={{ fontSize: 13 }}>{n.title}</strong>
+                    <span style={{ fontSize: 10, color: "var(--dim2)", marginLeft: 8 }}>
+                      {n.source === "typed" ? "typed" : n.source} · {formatDateTime(n.createdAt)}
+                      {n.documentId ? <> · <Link href={`/machines/${machineId}/docs/${n.documentId}`} style={{ color: "var(--accent)", textDecoration: "none" }}>ORIGINAL FILE</Link></> : null}
+                    </span>
+                  </div>
+                  {mayPlan ? (
+                    <form action={deleteMachineNoteAction}>
+                      <input type="hidden" name="machineId" value={machineId} />
+                      <input type="hidden" name="noteId" value={n.id} />
+                      <button type="submit" className="secondary" style={{ fontSize: 9, padding: "2px 6px" }}>DEL</button>
+                    </form>
+                  ) : null}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <NoteBody body={n.body} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <form action={addMachineNoteAction} className="card">
+        <input type="hidden" name="machineId" value={machineId} />
+        <div className="eyebrow">WRITE NOTE (MARKDOWN)</div>
+        <div className="row" style={{ flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+          <input name="title" placeholder="Title — e.g. PM findings Q3" style={{ flex: 1, minWidth: 240 }} />
+        </div>
+        <textarea
+          name="body"
+          rows={7}
+          placeholder={"## What happened\n- seal leak at drive end\n- replaced, tested **10 min dry run**\n\n# headings, - lists, **bold**, `code`, links"}
+          required
+          style={{ width: "100%", minHeight: 140, fontSize: 12 }}
+        />
+        <div style={{ marginTop: 8 }}>
+          <button type="submit">SAVE NOTE</button>
+        </div>
+      </form>
+
+      <form action={importMachineNoteAction} className="card">
+        <input type="hidden" name="machineId" value={machineId} />
+        <div className="eyebrow">IMPORT AS NOTE (max 5 MB · .md / .txt / .csv / .xlsx)</div>
+        <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+          <input type="file" name="file" required />
+          <button type="submit">IMPORT</button>
+        </div>
+        <p style={{ fontSize: 10, color: "var(--dim2)", margin: "8px 0 0" }}>
+          MD/TXT land verbatim; CSV/XLSX come in as the first 100 rows as a table (original always kept). PDF/DOCX belong on the ATTACHMENTS tab — preview there, download to view.
+        </p>
+      </form>
+    </>
+  );
+}
+
+function PartsTab({
+  parts,
+  machineId,
+  mayPlan,
+  flags,
+}: {
+  parts: Awaited<ReturnType<typeof componentsService.listForMachine>>;
+  machineId: string;
+  mayPlan: boolean;
+  flags: { grid?: string; gridError?: string; updated?: string; added?: string; removed?: string };
+}) {
+  return (
+    <>
+      {flags.grid === "saved" ? (
+        <div className="card">
+          <span className="ok-text">
+            Grid saved — {flags.updated ?? "0"} updated · {flags.added ?? "0"} added · {flags.removed ?? "0"} removed (each audited).
+          </span>
+        </div>
+      ) : null}
+      {flags.gridError ? (
+        <div className="card"><span className="error-text">{flags.gridError}</span></div>
+      ) : null}
+      {!mayPlan ? (
+        <div className="card">
+          <div className="eyebrow">{`COMPONENTS / ${parts.length}`}</div>
+          {parts.length === 0 ? (
+            <p className="empty-state" style={{ margin: 0 }}>No components recorded. Add bearing housings, seals, drive belts — linked inventory items arrive in M3.</p>
+          ) : (
+            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+              <tbody>
+                {parts.map((p) => (
+                  <tr key={p.id}>
+                    <td style={{ padding: "4px 10px 4px 0" }}>{p.tag ? <>{p.tag} · </> : null}{p.name}</td>
+                    <td style={{ color: "var(--dim2)", width: 120 }}>{p.kind}</td>
+                    <td style={{ color: "var(--dim2)" }}>{p.note ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+        <form action={saveComponentGridAction} className="card">
+          <input type="hidden" name="machineId" value={machineId} />
+          <div className="eyebrow">{`COMPONENTS GRID / ${parts.length} + 3 ADD ROWS`}</div>
+          <p style={{ fontSize: 12, color: "var(--dim)", margin: "4px 0 10px" }}>
+            Edit names, tags, kinds and notes in place; tick DEL to remove a row; use the empty bottom rows to add
+            components. One SAVE GRID commits everything.
+          </p>
+          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ color: "var(--dim2)", textAlign: "left" }}>
+                <th style={{ padding: "4px 8px 4px 0" }}>NAME</th>
+                <th style={{ padding: "4px 8px 4px 0", width: 110 }}>TAG</th>
+                <th style={{ padding: "4px 8px 4px 0", width: 150 }}>KIND</th>
+                <th style={{ padding: "4px 8px 4px 0" }}>NOTE</th>
+                <th style={{ padding: "4px 0", width: 30 }}>DEL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {parts.map((p, i) => (
+                <tr key={p.id}>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <input type="hidden" name="comp_id" value={p.id} />
+                    <input name="comp_name" defaultValue={p.name} required maxLength={120} style={{ width: "100%", textTransform: "none" }} />
+                  </td>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <input name="comp_tag" defaultValue={p.tag ?? ""} maxLength={40} style={{ width: "100%" }} />
+                  </td>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <select name="comp_kind" defaultValue={p.kind} style={{ width: "100%" }}>
+                      {[...new Set([p.kind, ...COMPONENT_KINDS])].map((k) => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <input name="comp_note" defaultValue={p.note ?? ""} maxLength={300} style={{ width: "100%" }} />
+                  </td>
+                  <td style={{ padding: 0, textAlign: "center" }}>
+                    <input type="checkbox" name={`comp_remove_${i}`} value="1" />
+                  </td>
+                </tr>
+              ))}
+              {[0, 1, 2].map(() => (
+                <tr key={`add-${machineId}`}>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <input type="hidden" name="comp_id" value="" />
+                    <input name="comp_name" placeholder="new component — e.g. Drive-end bearing" maxLength={120} style={{ width: "100%" }} />
+                  </td>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <input name="comp_tag" placeholder="tag" maxLength={40} style={{ width: "100%" }} />
+                  </td>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <select name="comp_kind" style={{ width: "100%" }}>
+                      {COMPONENT_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: "2px 8px 2px 0" }}>
+                    <input name="comp_note" placeholder="note" maxLength={300} style={{ width: "100%" }} />
+                  </td>
+                  <td style={{ padding: 0 }} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="row" style={{ marginTop: 12 }}>
+            <button type="submit">SAVE GRID</button>
+          </div>
+        </form>
+      )}
     </>
   );
 }
@@ -477,7 +848,8 @@ function DocumentsTab({
                   <td style={{ color: "var(--dim2)", width: 110 }}>{d.kind}</td>
                   <td style={{ color: "var(--dim2)", width: 90 }}>{Math.round(d.sizeBytes / 1024)} KB</td>
                   <td style={{ color: d.scanStatus === "quarantined" ? "var(--danger)" : "var(--dim2)", width: 100 }}>{d.scanStatus}</td>
-                  <td style={{ width: 70 }}>
+                  <td style={{ width: 130 }}>
+                    <a href={`/machines/${machineId}/docs/${d.id}`} style={{ color: "var(--accent)", fontSize: 11, marginRight: 10 }}>PREVIEW</a>
                     <a href={`/api/documents/${d.id}`} style={{ color: "var(--accent)", fontSize: 11 }}>OPEN</a>
                   </td>
                   {mayPlan ? (

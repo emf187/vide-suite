@@ -168,6 +168,7 @@ export const machinesWriteService = {
         warrantyUntil: input.warrantyUntil !== undefined ? input.warrantyUntil || null : machine.warrantyUntil,
         criticality: input.criticality ?? machine.criticality,
         locationNote: input.locationNote ?? machine.locationNote,
+        ratedSpecs: input.ratedSpecs !== undefined ? (input.ratedSpecs as Record<string, unknown>) : machine.ratedSpecs,
         updatedAt: new Date(),
       })
       .where(eq(machines.id, machine.id))
@@ -185,6 +186,38 @@ export const machinesWriteService = {
       entityType: "machine",
       entityId: machine.id,
       diff: { name: updated.name, siteId: updated.siteId, areaId: updated.areaId },
+    });
+    return updated;
+  },
+
+  /**
+   * Rated-specs matrix grid save (sprint item 3). The edit page renders EVERY
+   * current spec key as an editable row, so a save is a full replacement of
+   * rated_specs — removing a row (blank key/value) genuinely deletes the key.
+   * Audit keeps the final key list so the timeline shows what a save produced.
+   */
+  async updateRatedSpecs(
+    ctx: Ctx,
+    id: string,
+    specs: Record<string, string | number>,
+  ): Promise<Machine> {
+    const db = await getDb();
+    const machine = await machinesService.byId(ctx, id);
+    if (!machine) throw new Error("machine_not_found");
+    const rows = await db
+      .update(machines)
+      .set({ ratedSpecs: specs, updatedAt: new Date() })
+      .where(eq(machines.id, machine.id))
+      .returning();
+    const updated = rows[0];
+    if (!updated) throw new Error("specs update returned no rows");
+    await auditRepo.log(db, {
+      organizationId: ctx.orgId,
+      actorUserId: ctx.userId,
+      action: "machine.specs_updated",
+      entityType: "machine",
+      entityId: machine.id,
+      diff: { count: Object.keys(specs).length, keys: Object.keys(specs).sort() },
     });
     return updated;
   },

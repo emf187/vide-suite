@@ -5,7 +5,7 @@ import { areasService, sitesService } from "@/server/services/sites";
 import { getIntegrations } from "@/lib/integrations/factory";
 import { MACHINE_CATEGORIES } from "@/server/services/machines";
 import { listLinkedDevices } from "@/server/services/machine-extras";
-import { updateMachineAction, removeMachineAction } from "../../actions";
+import { updateMachineAction, removeMachineAction, saveSpecsGridAction } from "../../actions";
 
 export const metadata = { title: "Edit Machine" };
 
@@ -16,7 +16,7 @@ export default async function EditMachinePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const ctx = await getCtx();
   if (!ctx) return null;
@@ -25,6 +25,8 @@ export default async function EditMachinePage({
   const machine = await machinesService.byId(ctx, id);
   if (!machine) return <p className="empty-state">Machine not found.</p>;
   if (!can(ctx.roles, "plan.manage")) return <p className="empty-state">Only owner / admin / maintenance managers edit machines.</p>;
+
+  const specs = Object.entries((machine.ratedSpecs ?? {}) as Record<string, unknown>);
 
   const [sites, areas, videMachines, devices] = await Promise.all([
     sitesService.list(ctx),
@@ -41,6 +43,9 @@ export default async function EditMachinePage({
 
       {sp.error ? (
         <div className="card"><div className="eyebrow">CHECK</div><span className="error-text">{sp.error}</span></div>
+      ) : null}
+      {sp.saved === "specs" ? (
+        <div className="card"><span className="ok-text">Rated-specs matrix saved (audited).</span></div>
       ) : null}
 
       <form action={updateMachineAction} className="card">
@@ -93,6 +98,48 @@ export default async function EditMachinePage({
 
         <div className="row" style={{ marginTop: 16 }}>
           <button type="submit">SAVE CHANGES</button>
+        </div>
+      </form>
+
+      <form action={saveSpecsGridAction} className="card">
+        <input type="hidden" name="machineId" value={machine.id} />
+        <div className="eyebrow">RATED SPECS MATRIX</div>
+        <p style={{ fontSize: 12, color: "var(--dim)", margin: "4px 0 10px" }}>
+          One row per spec, edited in place. A blank key or blank value removes that spec on save — the
+          three empty rows at the bottom add new ones. Numbers stay numbers; everything else is text.
+        </p>
+        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ color: "var(--dim2)", textAlign: "left" }}>
+              <th style={{ padding: "4px 10px 4px 0", width: "38%" }}>SPEC</th>
+              <th style={{ padding: "4px 0" }}>VALUE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {specs.map(([key, value]) => (
+              <tr key={key}>
+                <td style={{ padding: "2px 10px 2px 0" }}>
+                  <input name="spec_key" defaultValue={key} style={{ width: "100%" }} />
+                </td>
+                <td style={{ padding: 0 }}>
+                  <input name="spec_value" defaultValue={value == null ? "" : String(value)} style={{ width: "100%" }} />
+                </td>
+              </tr>
+            ))}
+            {[0, 1, 2].map((i) => (
+              <tr key={`new-${i}`}>
+                <td style={{ padding: "2px 10px 2px 0" }}>
+                  <input name="spec_key" placeholder="new key — e.g. chiller_capacity_kw" style={{ width: "100%" }} />
+                </td>
+                <td style={{ padding: 0 }}>
+                  <input name="spec_value" placeholder="new value" style={{ width: "100%" }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="row" style={{ marginTop: 12 }}>
+          <button type="submit">SAVE SPECS</button>
         </div>
       </form>
 

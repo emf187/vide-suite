@@ -51,6 +51,81 @@ export const componentsService = {
     });
     return comp;
   },
+
+  /**
+   * Grid edit (sprint item 3): rewrite one BOM row. The componentId MUST match
+   * this org AND this machine — a stale grid row can never touch another
+   * machine's component (guessed ids throw instead of updating blind).
+   */
+  async update(
+    ctx: Ctx,
+    machineId: string,
+    componentId: string,
+    input: { name: string; tag?: string | null; kind?: string; note?: string | null },
+  ): Promise<MachineComponent> {
+    const db = await getDb();
+    const rows = await db
+      .select()
+      .from(machineComponents)
+      .where(
+        and(
+          eq(machineComponents.organizationId, ctx.orgId),
+          eq(machineComponents.machineId, machineId),
+          eq(machineComponents.id, componentId),
+        ),
+      )
+      .limit(1);
+    const existing = rows[0];
+    if (!existing) throw new Error("component_not_found");
+    const updated = await db
+      .update(machineComponents)
+      .set({
+        name: input.name.trim() || existing.name,
+        tag: input.tag !== undefined ? input.tag || null : existing.tag,
+        kind: input.kind?.trim() || existing.kind,
+        note: input.note !== undefined ? input.note || null : existing.note,
+      })
+      .where(eq(machineComponents.id, componentId))
+      .returning();
+    const comp = updated[0];
+    if (!comp) throw new Error("component update returned no rows");
+    await auditRepo.log(db, {
+      organizationId: ctx.orgId,
+      actorUserId: ctx.userId,
+      action: "machine.component_updated",
+      entityType: "machine",
+      entityId: machineId,
+      diff: { component: comp.name, kind: comp.kind, renamed: existing.name !== comp.name },
+    });
+    return comp;
+  },
+
+  /** Grid edit (sprint item 3): delete one BOM row (same org+machine guard). */
+  async remove(ctx: Ctx, machineId: string, componentId: string): Promise<void> {
+    const db = await getDb();
+    const rows = await db
+      .select()
+      .from(machineComponents)
+      .where(
+        and(
+          eq(machineComponents.organizationId, ctx.orgId),
+          eq(machineComponents.machineId, machineId),
+          eq(machineComponents.id, componentId),
+        ),
+      )
+      .limit(1);
+    const existing = rows[0];
+    if (!existing) throw new Error("component_not_found");
+    await db.delete(machineComponents).where(eq(machineComponents.id, componentId));
+    await auditRepo.log(db, {
+      organizationId: ctx.orgId,
+      actorUserId: ctx.userId,
+      action: "machine.component_removed",
+      entityType: "machine",
+      entityId: machineId,
+      diff: { component: existing.name },
+    });
+  },
 };
 
 /** Linked VIDE devices incl. unlinked history (Overview + Health tabs). */
