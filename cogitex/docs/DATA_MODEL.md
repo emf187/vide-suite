@@ -437,6 +437,33 @@ HTML table of `<input>`s submitted by ONE server action (progressive enhancement
   row can never blindly rewrite another machine's component. The standalone ADD COMPONENT form
   was folded into the grid (action removed).
 
+### 3.14 Demo purchase module (migration 0011, sprint item 4)
+
+**purchases** (org) + **purchase_ledger** (append-only event trail, M5 pattern)
+`purchases`: id, organization_id FK, user_id FK SET NULL, plan_key, plan_name, amount_kobo
+integer, currency NGN, status (`initiated → awaiting_confirmation → paid | failed |
+abandoned`), channel (`demo` | `paystack_test`), provider_reference, payload jsonb, audit
+cols. `purchase_ledger`: purchase_id FK CASCADE, event (`initiated | checkout_opened |
+confirmed | abandoned | failed | rechecked`), detail jsonb, actor, at. INDEXES: (org,
+created), reference.
+
+**The demo rules (module can never cost real money):**
+- Plan amounts come ONLY from the `PURCHASE_PLANS` catalog in
+  `src/server/services/purchase.ts` — a form can never influence what is charged.
+- **Paystack is used ONLY with test keys**: `sk_test_*` → real TEST-mode initialize/verify
+  (`src/lib/payments/paystack.ts`, `PAYSTACK_API_BASE` test seam, 12s timeout, honest
+  errors). `sk_live_*` or unrecognized keys are REFUSED outright (`paystack_key_refused`);
+  no key → `demo` channel with the built-in fake checkout page
+  (`/purchase/demo/[purchaseId]`), which is deliberately not a card form: CONFIRM (DEMO)
+  PAID / DECLINE (DEMO) buttons write honest ledger rows.
+- Entry: `/purchase` (plans + fake ledger table + mode line), trail page
+  `/purchase/[purchaseId]` (status trail, CHECK PAYMENT pull-truth for test rows,
+  ABANDON), demo banner on every surface. Writes are `settings.manage` (owner/admin);
+  actions follow the redirect-outside-the-catch rule.
+- Tenancy: every read/write is org-scoped (`purchase_not_found` for foreign ids);
+  audits `purchase.started/paid/failed/abandoned`; the ledger trail duplicates neither
+  audit content nor the purchases row — it is the per-purchase event log.
+
 ## 4. State machines
 
 ### 4.1 Machine lifecycle

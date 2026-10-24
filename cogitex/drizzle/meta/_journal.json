@@ -78,6 +78,13 @@
       "when": 1792846588001,
       "tag": "0010_cool_devos",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792847868922,
+      "tag": "0011_public_blizzard",
+      "breakpoints": true
     }
   ]
 }

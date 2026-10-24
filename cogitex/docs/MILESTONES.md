@@ -923,4 +923,46 @@ added - 1 removed, listing the survivors.
 ledger, clear DEMO banner), then item 5 - thread the agent through all of
 it ("show UKR chiller's last service and spend" - the pitch moment).
 
+## UPGRADE SPRINT item 4 - demo purchase module (Paystack test keys + fake ledger + DEMO banner)
+
+**Commit:** `demo purchase module - plans + fake ledger + Paystack TEST-key flow (migration 0011 purchases/purchase_ledger)`
+
+- **New surface `/purchase`** (linked from Settings): three plan cards (PRO
+  monthly / PRO annual / PILOT 90) with BUY DEMO, the FAKE LEDGER table of
+  every purchase (when, plan, amount, status chip, channel, trail link) and
+  a mode line that names exactly what backs the flow. A persistent
+  DEMO - TEST MODE ONLY banner sits on every surface of the module.
+- **The seam, honest about money:** plan amounts come ONLY from the
+  PURCHASE_PLANS catalog (a form can never influence the charge). With
+  `sk_test_*` the flow runs REAL Paystack TEST-mode initialize/verify
+  (`src/lib/payments/paystack.ts`; PAYSTACK_API_BASE test seam for tests,
+  12s timeout). `sk_live_*` or unrecognized keys are REFUSED outright -
+  this app cannot process a real charge even by misconfiguring it. No key
+  at all = the built-in fake checkout page (`/purchase/demo/[purchaseId]`),
+  which shows NO card form on purpose: CONFIRM (DEMO) PAID / DECLINE (DEMO)
+  buttons mark the row paid/failed with a trail that says what happened.
+- **Fake ledger = purchases + purchase_ledger** (migration 0011): status
+  machine `initiated - awaiting_confirmation - paid|failed|abandoned`,
+  append-only event trail per purchase (M5 repair_request_events pattern),
+  audits `purchase.started/paid/failed/abandoned`. Writes gated to
+  `settings.manage` (owner/admin); every read/write org-scoped
+  (`purchase_not_found` for foreign ids). CHECK PAYMENT on test rows pulls
+  truth from Paystack's verify endpoint - never assumed locally.
+- **End pages:** `/purchase/[purchaseId]` shows the full trail with
+  contextual controls per state/channel.
+
+**Tests/verification:** tsc clean; purchase suite (9 tests) - mode
+resolution (no key = demo, sk_test_ = test mode with masked key, sk_live_
+refused), refused-key refusal at service level, catalog-only pricing
+(unknown_plan), start - confirm - decline - abandon state machine with
+trail rows, double-confirm refusal (`not_pending:paid`), test rows never
+confirmed locally (`not_a_demo_purchase`) even when their initialize fails
+honestly against an unreachable provider (test seam asserts no phantom
+success), demo-`check()` as a no-op read, full cross-org tenancy on byId/
+confirm/events/list, and catalog sanity. Full suite stays green (177
+passing with the grid tests), tsc clean.
+
+**Next:** item 5 - thread the agent through all of it ("show UKR chiller's
+last service and spend" - the pitch moment).
+
 

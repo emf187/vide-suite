@@ -1,6 +1,7 @@
 import { getCtx } from "@/server/ctx";
 import { getIntegrations } from "@/lib/integrations/factory";
 import { can } from "@/server/policies";
+import Link from "next/link";
 
 export const metadata = { title: "Settings" };
 
@@ -58,6 +59,13 @@ export default async function SettingsPage() {
           Swap to real VIDE by setting INTEGRATION_PROFILE=real + VIDE_API_BASE_URL. Contracts: docs/INTEGRATION_CONTRACTS.md
         </div>
       </div>
+
+      <Link href="/purchase" className="card" style={{ display: "block" }}>
+        <div className="eyebrow">PURCHASE (DEMO)</div>
+        <p style={{ fontSize: 12, color: "var(--dim)", margin: "4px 0 0" }}>
+          Demo purchase module — plans, fake ledger, PAYSTACK test-key flow. → OPEN PURCHASE DEMO
+        </p>
+      </Link>
     </>
   );
 }

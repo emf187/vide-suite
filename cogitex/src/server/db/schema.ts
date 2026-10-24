@@ -787,3 +787,55 @@ export const machineNotes = pgTable("machine_notes", {
 ]);
 
 export type MachineNote = typeof machineNotes.$inferSelect;
+
+/* =====================================================================
+ * Sprint item 4 — demo purchase module (docs/DATA_MODEL.md §3.14)
+ * ===================================================================== */
+
+/**
+ * DEMO purchase ledger. This module demonstrates a paid-plan purchase flow:
+ * Paystack is used ONLY with test keys (sk_test_*); live keys are refused
+ * outright; without a key the flow runs on the built-in fake checkout.
+ * Every purchase is demo by construction — no real money exists anywhere in
+ * the app; the ledger rows exist to prove the seam works end to end.
+ */
+export const purchases = pgTable("purchases", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  planKey: text("plan_key").notNull(),
+  planName: text("plan_name").notNull(),
+  amountKobo: integer("amount_kobo").notNull(), // integer kobo; never floats
+  currency: text("currency").notNull().default("NGN"),
+  /** initiated → awaiting_confirmation → paid | failed | abandoned */
+  status: text("status").notNull().default("initiated"),
+  /** demo (fake checkout, no key) | paystack_test (sk_test_* only) */
+  channel: text("channel").notNull(),
+  /** provider reference (Paystack test transaction) — null on the fake path */
+  providerReference: text("provider_reference"),
+  /** provider payloads / demo checkout echo, kept verbatim */
+  payload: jsonb("payload"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("purchases_org_created_idx").on(t.organizationId, t.createdAt),
+  index("purchases_reference_idx").on(t.providerReference),
+]);
+
+/** Append-only companion event trail (M5 repair_request_events pattern). */
+export const purchaseLedger = pgTable("purchase_ledger", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  purchaseId: uuid("purchase_id").notNull().references(() => purchases.id, { onDelete: "cascade" }),
+  /** initiated | checkout_opened | confirmed | abandoned | failed | rechecked */
+  event: text("event").notNull(),
+  detail: jsonb("detail"),
+  actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("purchase_ledger_purchase_idx").on(t.purchaseId),
+  index("purchase_ledger_org_at_idx").on(t.organizationId, t.at),
+]);
+
+export type Purchase = typeof purchases.$inferSelect;
+export type PurchaseLedgerEntry = typeof purchaseLedger.$inferSelect;
