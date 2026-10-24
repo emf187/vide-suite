@@ -1,6 +1,7 @@
 import { getCtx } from "@/server/ctx";
 import { getIntegrations } from "@/lib/integrations/factory";
 import { CALC_VERSION } from "@/server/metrics/reports";
+import { FullLogo } from "@/components/layout/Logo";
 
 export const metadata = { title: "About" };
 
@@ -11,6 +12,7 @@ const MILESTONES: { id: string; title: string; note: string }[] = [
   { id: "M6", title: "Reports", note: "Deterministic versioned calc bundles (MTTR/MTBF/uptime/planned-ratio, cost rollups) — numbers come from code, never a model; server-side CSV and PDF exports." },
   { id: "M7", title: "Agent", note: "Org-scoped read tools with citations; write actions proposed in chat and executed only after explicit CONFIRM; every tool call logged. Intent matching is deterministic unless a model key is configured — and a model only ever maps text to a tool." },
   { id: "M8", title: "Progressive web app", note: "Installable manifest with the mark logo, static-only service worker (pages stay network-only so sessions are never cached), security headers, and the enriched demo data set." },
+  { id: "M9", title: "Docs, audit + dossiers", note: "Work-order comment threads with provenance rails, multimedia file library, a full-page note editor with a word-processor toolbar; the org-wide audit trail viewer and the printable machine dossier." },
 ];
 
 /** M8 app-info page — the ONE context where the with-name lockup is used. */
@@ -23,13 +25,12 @@ export default async function AboutPage() {
     <>
       <h1>About the app</h1>
       <p className="lead">
-        COGITEX Maintenance Planner — everything about a machine, its repairs, parts and next
-        job in one place.
+        ORGO — the maintenance manager — everything about a machine, its repairs,
+        parts and next job in one place.
       </p>
 
       <div className="card" style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/img/brand-lockup.png" alt="COGITEX" width={180} style={{ borderRadius: 4 }} />
+        <FullLogo width={200} />
         <div style={{ fontSize: 11, lineHeight: 1.7, color: "var(--dim)" }}>
           <div style={{ letterSpacing: 2, color: "var(--accent)", fontSize: 10 }}>THE PRODUCT</div>
           A single-tenant-per-workspace maintenance console for factory teams. Your data stays in

@@ -10,6 +10,7 @@ describe("ability matrix", () => {
       expect(can([role], "decommission.execute")).toBe(true);
       expect(can([role], "hardDelete")).toBe(true);
       expect(can([role], "wo.plan")).toBe(true);
+      expect(can([role], "audit.view")).toBe(true);
     }
   });
 
@@ -17,6 +18,7 @@ describe("ability matrix", () => {
     expect(can(["maintenance_manager"], "plan.manage")).toBe(true);
     expect(can(["maintenance_manager"], "wo.plan")).toBe(true);
     expect(can(["maintenance_manager"], "wo.execute")).toBe(true);
+    expect(can(["maintenance_manager"], "audit.view")).toBe(true);
     expect(can(["maintenance_manager"], "settings.manage")).toBe(false);
     expect(can(["maintenance_manager"], "decommission.execute")).toBe(false);
   });
@@ -27,10 +29,11 @@ describe("ability matrix", () => {
     expect(can(["technician"], "wo.plan")).toBe(false);
     expect(can(["technician"], "plan.manage")).toBe(false);
     expect(can(["technician"], "inventory.manage")).toBe(false);
+    expect(can(["technician"], "audit.view")).toBe(false);
   });
 
   it("viewer sees but cannot change", () => {
-    for (const ability of ["plan.manage", "wo.plan", "wo.execute", "inventory.manage", "settings.manage"] as const) {
+    for (const ability of ["plan.manage", "wo.plan", "wo.execute", "inventory.manage", "settings.manage", "audit.view"] as const) {
       expect(can(["viewer"], ability)).toBe(false);
     }
   });

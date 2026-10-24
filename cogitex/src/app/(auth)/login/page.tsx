@@ -44,23 +44,23 @@ export default async function LoginPage({
   return (
     <div className="auth-mesh min-h-screen flex items-center justify-center p-4 md:p-8">
       <div className="fixed top-6 left-6 z-0 pointer-events-none opacity-40">
-        <div className="auth-mark">C</div>
+        <div className="auth-mark">O</div>
       </div>
 
       <div className="auth-glass w-full max-w-md rounded-2xl p-8 relative z-10">
         <div className="flex items-center gap-3 mb-2">
           <div className="auth-mark" style={{ width: 34, height: 34, fontSize: 15 }}>
-            C
+            O
           </div>
           <div>
-            <div className="text-[15px] font-bold tracking-[1px] text-ink">COGITEX</div>
-            <div className="text-[8.5px] tracking-[2px] text-dim uppercase">MAINTENANCE PLANNER</div>
+            <div className="text-[15px] font-bold tracking-[1px] text-ink">ORGO</div>
+            <div className="text-[8.5px] tracking-[2px] text-dim uppercase">MAINTENANCE MANAGER</div>
           </div>
         </div>
 
         <p className="text-[12px] text-dim mt-3 mb-6 leading-relaxed">
           One plant, one login — live machine health, faults and work orders,
-          automatically synced from the VIDE console.
+          managed in Orgo and synced from the VIDE console.
         </p>
 
         <form action={signInAction} id="login-form" className="space-y-4">

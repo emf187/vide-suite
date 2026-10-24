@@ -198,7 +198,7 @@ describe("M6 reports: generate + tenancy", () => {
     const { reportId } = await reportsWriteService.generate(viewerCtx, { kind: "plant_summary", from: new Date(Date.now() - 7 * 86_400_000), to: new Date() });
     const r = await reportsService.byId(ctx, reportId);
     const csv = reportToCsv(r!);
-    expect(csv).toContain("COGITEX MAINTENANCE PLANNER");
+    expect(csv).toContain("ORGO · MAINTENANCE MANAGER");
     expect(csv).toContain("cost_labor,500000,kobo");
     expect(csv).toContain("mttr,2,hours");
     expect(csv).toContain("WO TYPE MIX");

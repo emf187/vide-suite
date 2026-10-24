@@ -1,5 +1,5 @@
 /*
- * Visual tokens for Cogitex Maintenance Planner.
+ * Visual tokens for ORGO Maintenance Manager.
  * ORIGIN: copied verbatim from the VIDE main app front-end
  *   (vide manage/index.html, :root CSS variables + typography).
  * These mirror the CSS custom properties in src/styles/globals.css.

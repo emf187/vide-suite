@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return new Response(new Uint8Array(bytes), {
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `attachment; filename="cogitex-${r.kind}-${stamp}.pdf"`,
+      "content-disposition": `attachment; filename="orgo-${r.kind}-${stamp}.pdf"`,
       "cache-control": "no-store",
     },
   });

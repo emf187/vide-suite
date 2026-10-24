@@ -1,23 +1,32 @@
 /**
- * Cogitex brand assets (client-supplied):
- *  - <Logo /> renders the mark WITHOUT the name — used everywhere in the shell UI.
- *  - <FullLogo /> renders the with-name lockup — reserved for auth/about/contact blocks.
- * Assets are the trimmed transparent PNGs in /public/img. IMPORTANT: they live at
- * `brand-*.png` URLs (not the historical `logo-*.png`) because the M8 service worker
- * cached the historical URLs cache-first with broken-era bytes at the same path —
- * fresh URLs defeat every cache layer; the M9+ SW also bumped its cache version.
+ * Orgo brand: the mark is the client-supplied PNG WITHOUT the name
+ * (brand-*.png URLs — chosen over the historical logo-*.png because the M8
+ * service worker cached those cache-first with broken-era bytes; fresh URLs
+ * defeat every cache layer, and the M9+ SW bumped its cache version anyway).
+ * The wordmark is TEXT (never baked into pixels): the product name is Orgo,
+ * so the name can change in one place — this component — when it does.
  */
+
+/** The mark alone — used everywhere in the shell UI. */
 export function Logo({ className }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/img/brand-mark.png" alt="Cogitex" className={className} draggable={false} />
+    <img src="/img/brand-mark.png" alt="Orgo" className={className} draggable={false} />
   );
 }
 
-/** With-name lockup — for auth / about / contact surfaces only. */
-export function FullLogo({ className, width = 180 }: { className?: string; width?: number }) {
+/** Full lockup (mark + wordmark + role line) — for auth / about / print surfaces. */
+export function FullLogo({ width = 200 }: { width?: number }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src="/img/brand-lockup.png" alt="Cogitex Maintenance Planner" width={width} className={className} draggable={false} />
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/img/brand-mark.png" alt="Orgo mark" style={{ width: Math.round(width * 0.26), height: "auto" }} draggable={false} />
+      <div style={{ lineHeight: 1.25 }}>
+        <div style={{ fontWeight: 800, fontSize: Math.round(width * 0.12), letterSpacing: 2 }}>ORGO</div>
+        <div style={{ fontSize: Math.max(8, Math.round(width * 0.055)), letterSpacing: 2, color: "var(--dim)" }}>
+          MAINTENANCE MANAGER
+        </div>
+      </div>
+    </div>
   );
 }

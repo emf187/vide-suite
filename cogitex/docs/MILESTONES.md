@@ -1085,4 +1085,45 @@ secret content still gets nothing). Markdown renderer grew GFM tables — cells
 stay escape-first (`<script>` cannot survive), `\|` renders literally,
 alignment markers honored.
 
+## Sprint 8 — Orgo rebrand + professional pack (2026-10-24)
+
+**Product rename — Cogitex → ORGO.** The maintenance manager is named **ORGO**
+(nowhere "Cogitex Orgo" — the double codename read like an apology). Every
+user-visible surface changed: sidebar + footer brand block (ORGO · MAINTENANCE
+MANAGER), login/signup marks ("O" wordmark cards), the `<FullLogo>` component
+(now TEXT — the with-name lockup PNG had the old word baked into pixels, so the
+name lives in typography and changes in one place), PWA manifest
+("ORGO Maintenance Manager"), root metadata template (`%s · ORGO`), the
+Landing/About copy, the agent's LLM persona strings ("Orgo Maintenance
+assistant"), healthz service id, and the deterministic exports (CSV section
+line, PDF title/producer, `orgo-<kind>-<date>.csv/pdf` filenames). Brand is
+contract-tested (`tests/branding.test.ts`): manifest + export filenames cannot
+silently regress. Internal infra identifiers (session cookie, global store
+keys, `[cogitex]` log prefixes, demo email domain, the mirror's `cogitex`
+folder) keep the codename deliberately — zero-risk continuity.
+
+**Sprint item 1 — Audit trail viewer (`/audit`).** Every write service already
+appends to the audit log; nothing could read it org-wide. New `audit.view`
+ability (owner/admin/maintenance_manager — professional personas, not techs),
+`auditService` (org-scoped, actor-name join, system/webhook kinds surface when
+no user exists, newest-first with `occurred_at` + id tiebreak, per-type
+`countsByType` + `total`), and the `/audit` page: filter chips with live
+counts, WHEN/WHO/ACTION/ENTITY/DETAIL table, deep links back into the app for
+machine/wo/inventory/purchase/repair/report rows, 140-char JSON diffs. Chips
+are plain GET links — fully no-JS. Non-privileged roles get a RESTRICTED card.
+
+**Sprint item 2 — Machine dossier print view (`/machines/[id]/print`).** The
+one professional print surface: identity block (make/model/serial/specs/
+criticality/lifecycle/runtime/install/warranty/linked VIDE device), open +
+recent work orders, open + past faults, up to 20 rendered notes
+(server-side escape-first markdown), documents index — generated fresh per
+load, ink-friendly via `@media print`, `break-inside: avoid` per section,
+prints WITHOUT the sidebar/topbar (route group outside the app shell). Works
+with JS off (Ctrl+P); the small `PrintButton` island just calls `print()`.
+Machine page headers now carry a PRINT DOSSIER next to EDIT.
+
+**Tests/verification:** tsc clean; **233 passing (from 227; 6 new: 4 audit
+scoping/filter/actor/limit + 2 brand-contract, plus the reports CSV brand line
+assertion now pinning ORGO)**
+
 

@@ -33,7 +33,7 @@ export function AppShell({ ctx, children }: AppShellProps) {
           {children}
         </div>
         <footer className="footerbar">
-          <span>COGITEX MAINTENANCE PLANNER</span>
+          <span>ORGO · MAINTENANCE MANAGER</span>
           <span>
             {ctx.orgName.toUpperCase()} · ROLE {ctx.roles[0]?.toUpperCase() ?? "UNKNOWN"}
           </span>

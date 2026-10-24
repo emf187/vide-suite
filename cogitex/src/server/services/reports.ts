@@ -138,7 +138,7 @@ export function reportToCsv(r: { kind: string; periodFrom: Date; periodTo: Date;
   const lines: string[] = [];
   const push = (...cols: unknown[]) => lines.push(cols.map(csvEscape).join(","));
 
-  push(`section`, `COGITEX MAINTENANCE PLANNER`);
+  push(`section`, `ORGO · MAINTENANCE MANAGER`);
   push(`report`, r.kind);
   push(`period`, calc.period.from, calc.period.to, `days=${calc.period.days}`);
   push(`calc_version`, calc.calcVersion);
@@ -180,7 +180,7 @@ export function reportToCsv(r: { kind: string; periodFrom: Date; periodTo: Date;
 
 export function csvFilename(r: { kind: string; generatedAt: Date }): string {
   const stamp = r.generatedAt.toISOString().slice(0, 10);
-  return `cogitex-${r.kind}-${stamp}.csv`;
+  return `orgo-${r.kind}-${stamp}.csv`;
 }
 
 /* ---------- PDF (pdf-lib, A4, deterministic — no runtime fetches) ---------- */
@@ -196,8 +196,8 @@ export async function reportToPdfBytes(r: {
   const calc = r.calc as MetricsBundle;
 
   const doc = await PDFDocument.create();
-  doc.setTitle(`Cogitex ${r.kind} — ${r.periodFrom.toISOString().slice(0, 10)} → ${r.periodTo.toISOString().slice(0, 10)}`);
-  doc.setProducer("Cogitex Maintenance Planner (deterministic build)");
+  doc.setTitle(`ORGO ${r.kind} — ${r.periodFrom.toISOString().slice(0, 10)} → ${r.periodTo.toISOString().slice(0, 10)}`);
+  doc.setProducer("ORGO Maintenance Manager (deterministic build)");
   const page = doc.addPage([595.28, 841.89]); // A4 portrait
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -218,7 +218,7 @@ export async function reportToPdfBytes(r: {
     line(title, 13, bold, accent);
   };
 
-  line("COGITEX MAINTENANCE PLANNER", 18, bold, accent);
+  line("ORGO · MAINTENANCE MANAGER", 18, bold, accent);
   y -= 2;
   line(`${r.orgName} · ${r.kind === "machine_status" ? "Machine status report" : "Plant summary"}`, 10, font, dim);
   line(`Period ${r.periodFrom.toISOString().slice(0, 10)} → ${r.periodTo.toISOString().slice(0, 10)} (${calc.period.days} days)`, 10, font, dim);

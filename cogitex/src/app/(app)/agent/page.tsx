@@ -111,7 +111,7 @@ export default async function AgentPage() {
         <div className="eyebrow">CONTEXT · WHAT THE AGENT SEES</div>
         <p className="kv" style={{ marginTop: 4 }}>
           <span className="k">App</span>
-          <span className="v">Cogitex Maintenance — work orders, faults, inventory, repairs, reports. Machine telemetry flows in from VIDE CORTEX.</span>
+          <span className="v">Orgo Maintenance — work orders, faults, inventory, repairs, reports. Machine telemetry flows in from VIDE CORTEX.</span>
         </p>
         <p className="kv">
           <span className="k">Role</span>

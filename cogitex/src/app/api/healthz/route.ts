@@ -8,7 +8,7 @@ export async function GET() {
   const integrations = getIntegrations();
   return NextResponse.json({
     ok: true,
-    service: "cogitex-maintenance-planner",
+    service: "orgo-maintenance-manager",
     integrationProfile: integrations.profile,
     time: new Date().toISOString(),
   });

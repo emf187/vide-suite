@@ -29,8 +29,8 @@ export default async function SignupPage({
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
           <Logo className="logo" />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>COGITEX</div>
-            <div style={{ fontSize: 9, color: "var(--dim)", letterSpacing: 1 }}>MAINTENANCE PLANNER</div>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>ORGO</div>
+            <div style={{ fontSize: 9, color: "var(--dim)", letterSpacing: 1 }}>MAINTENANCE MANAGER</div>
           </div>
         </div>
 

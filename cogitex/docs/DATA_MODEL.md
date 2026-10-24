@@ -348,6 +348,9 @@ written describing `calc`; a post-check rejects a narrative containing numerals 
 `id, organization_id, actor_user_id NULL (system actions NULL), actor_kind ('user'|'system'|'agent'|'webhook'),
 action text ('machine.created','wo.status_changed','stock.issued',…), entity_type, entity_id,
 diff jsonb (field-level before/after, snapshots excluded), at, request_id, ip_hash`.
+Read side (Sprint 8): `/audit` governance page behind the `audit.view` ability
+(owner/admin/maintenance_manager) — `auditService.list/countsByType/total`, org-scoped,
+actor names joined from users, filter chips are GET links (no-JS).
 
 **notifications** (org)
 `id, organization_id, user_id, channel CHECK ('in_app','email','push','whatsapp','sms'),

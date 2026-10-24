@@ -1,8 +1,10 @@
-# Cogitex Maintenance Planner
+# ORGO — Maintenance Manager
 
 "Notion for maintenance": documentation, planning and inventory for factory maintenance teams.
 Reads live machine health/energy/faults from **VIDE** + **Cortex**, and is a client of the
-Cogitex Verified Technician marketplace.
+repair-requests marketplace. Previously codenamed **Cogitex** — internal identifiers (session
+cookie, test data, log prefixes, the `cogitex` folder in the mirror repo) keep the codename for
+continuity; every user-visible surface now says **ORGO**.
 
 - Planning docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) ·

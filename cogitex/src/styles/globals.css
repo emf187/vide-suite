@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /*
- * Cogitex Maintenance Planner — design system V2.
+ * ORGO — design system V2.
  *
  * Direction: "ops notebook" — Notion-calm paper + charcoal control-room sidebar,
- * Cogitex orange as the only accent, Inter for text, JetBrains Mono for
+ * Orgo orange as the only accent, Inter for text, JetBrains Mono for
  * tags/ids/numerals. Hairline separation (no heavy borders), soft elevation,
  * 120–220ms motion. Phone-first: off-canvas sidebar, 44px touch targets,
  * safe-area insets, iOS-zoom-safe inputs.
@@ -33,7 +33,7 @@
   --dim: #6b6862;
   --dim2: #9a958d;
 
-  /* accent (from the Cogitex mark) */
+  /* accent (from the Orgo mark) */
   --accent: #f5871f;
   --accent-hi: #ff9a3d;
   --accent-deep: #d96f0d;

@@ -14,6 +14,7 @@ export type Ability =
   | "repairRequests.send" // reply-only compile/confirm/rate
   | "repairRequests.viewOwn"
   | "report.view" // view + generate deterministic reports
+  | "audit.view" // org-wide audit trail (governance)
   | "decommission.execute"
   | "hardDelete"
   | "settings.manage";
@@ -28,6 +29,7 @@ const MATRIX: Record<Ability, Set<Role>> = {
   "repairRequests.send": new Set<Role>(["owner", "admin", "maintenance_manager"]),
   "repairRequests.viewOwn": new Set<Role>(["owner", "admin", "maintenance_manager", "external_technician"]),
   "report.view": new Set<Role>(["owner", "admin", "maintenance_manager", "technician", "viewer"]),
+  "audit.view": new Set<Role>(["owner", "admin", "maintenance_manager"]),
   "decommission.execute": new Set<Role>(["owner", "admin"]),
   "hardDelete": new Set<Role>(["owner", "admin"]),
   "settings.manage": new Set<Role>(["owner", "admin"]),

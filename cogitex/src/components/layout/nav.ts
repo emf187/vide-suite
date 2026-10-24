@@ -15,6 +15,7 @@ const ICONS = {
   locations: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
   about: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
   library: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="13" y2="11"/></svg>',
+  audit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
 };
 
 /** Sidebar navigation config. `milestone` gating marks not-yet-built destinations. */
@@ -57,6 +58,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/settings", label: "Settings", crumb: "SYSTEM / SETTINGS", milestone: null, icon: ICONS.settings },
       { href: "/settings/locations", label: "Locations", crumb: "SYSTEM / LOCATIONS", milestone: null, icon: ICONS.locations },
+      { href: "/audit", label: "Audit trail", crumb: "SYSTEM / AUDIT TRAIL", milestone: null, icon: ICONS.audit },
       { href: "/about", label: "About", crumb: "SYSTEM / ABOUT THE APP", milestone: null, icon: ICONS.about },
     ],
   },

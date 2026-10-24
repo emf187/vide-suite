@@ -275,6 +275,9 @@ export default async function MachineProfilePage({
                     <button type="button" className="secondary">DECOMMISSION…</button>
                   </Link>
                 ) : null}
+                <Link href={`/machines/${machine.id}/print`} style={{ textDecoration: "none" }}>
+                  <button type="button" className="secondary">PRINT DOSSIER</button>
+                </Link>
                 <Link href={`/machines/${machine.id}/edit`} style={{ textDecoration: "none" }}>
                   <button type="button" className="secondary">EDIT</button>
                 </Link>

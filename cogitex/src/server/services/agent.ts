@@ -164,7 +164,7 @@ async function chatWithLlm(question: string, history: AgentHistory, plant: unkno
   const base = process.env.AGENT_LLM_BASE_URL ?? "https://api.openai.com/v1";
   const model = process.env.AGENT_LLM_MODEL ?? "gpt-4o-mini";
   const system = [
-    "You are the Cogitex Maintenance assistant chatting with a maintenance planner about their plant.",
+    "You are the Orgo Maintenance assistant chatting with a maintenance planner about their plant.",
     "You get the QUESTION, the recent CONVERSATION, and a PLANT block of verified numbers from this plant's database.",
     "Answer conversationally (max ~120 words). Maintenance questions: be practical and concrete.",
     "PLANT-block numbers may be quoted verbatim. Prior assistant turns came from verified tools — you may reference them in follow-ups.",
@@ -215,7 +215,7 @@ async function phraseWithLlm(question: string, reply: AgentReply, history: Phras
   const base = process.env.AGENT_LLM_BASE_URL ?? "https://api.openai.com/v1";
   const model = process.env.AGENT_LLM_MODEL ?? "gpt-4o-mini";
   const system = [
-    "You are the Cogitex Maintenance assistant for a maintenance planner.",
+    "You are the Orgo Maintenance assistant for a maintenance planner.",
     "You get the user's QUESTION, prior CONVERSATION turns, the DATA the tool returned from the plant database, and a DRAFT reply.",
     "Use the CONVERSATION only for context (pronoun/follow-up resolution) — never as a source of numbers.",
     "Write ONE natural answer to the question using ONLY names, ids and numbers that appear verbatim in the DATA or the DRAFT.",

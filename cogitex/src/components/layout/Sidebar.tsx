@@ -26,8 +26,8 @@ export function Sidebar({ orgName, userName, statusLabel, live }: SidebarProps) 
       <div className="brand">
         <Logo className="logo" />
         <div>
-          <div className="name">COGITEX</div>
-          <div className="sub">MAINTENANCE PLANNER</div>
+          <div className="name">ORGO</div>
+          <div className="sub">MAINTENANCE MANAGER</div>
         </div>
       </div>
 

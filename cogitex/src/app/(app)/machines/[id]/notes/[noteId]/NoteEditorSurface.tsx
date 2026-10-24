@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Note editor surface — the one deliberate client-JS island in Cogitex
+ * Note editor surface — the one deliberate client-JS island in Orgo
  * (mini note app, by design decision): toolbar edits happen at the cursor so
  * writing feels like a real note app. Everything else is unchanged:
  * the textarea still lives inside the SERVER form, SAVE/PREVIEW still hit the

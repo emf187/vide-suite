@@ -6,8 +6,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cogitex Maintenance Planner",
-    short_name: "Cogitex",
+    name: "ORGO Maintenance Manager",
+    short_name: "ORGO",
     description:
       "Factory maintenance planner — machines, plans, work orders, faults, parts, repair marketplace and agent, in one console.",
     id: "/",

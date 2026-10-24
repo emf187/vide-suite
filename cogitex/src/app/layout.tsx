@@ -22,8 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "COGITEX Maintenance Planner",
-    template: "%s · COGITEX Planner",
+    default: "ORGO Maintenance Manager",
+    template: "%s · ORGO",
   },
   description:
     "Documentation, planning and inventory for factory maintenance teams — everything about a machine, its repairs, parts and next job in one place.",
