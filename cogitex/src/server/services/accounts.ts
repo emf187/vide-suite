@@ -1,6 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { and, eq, isNull, gt } from "drizzle-orm";
 import type { AppDb } from "@/server/db/client";
 import type { Organization, User } from "@/server/db/schema";
+import { passwordResetTokens } from "@/server/db/schema";
 import { auditRepo } from "@/server/repos/audit";
 import { membershipsRepo } from "@/server/repos/memberships";
 import { orgsRepo } from "@/server/repos/orgs";
@@ -106,4 +108,83 @@ export async function createAccount(
     });
     return { kind: "created" as const, user, organization };
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* M0 security: expiring, single-use password reset tokens             */
+/* ------------------------------------------------------------------ */
+
+const RESET_TTL_MINUTES = 30;
+
+function tokenId(rawToken: string): string {
+  return createHash("sha256").update(rawToken).digest("hex");
+}
+
+/**
+ * Start a password reset: mints an expiring single-use token (hash at rest)
+ * and burns any previous unused tokens for the user. Delivery (email) is
+ * STUBBED for now — clearly marked until a mailer is configured; the caller
+ * receives the raw link token exactly as an email body would carry it.
+ * Unknown / deactivated / non-password accounts get a silent null — the
+ * response never reveals whether an email belongs to an account.
+ */
+export async function requestPasswordReset(
+  db: AppDb,
+  email: string,
+): Promise<{ token: string; expiresAt: Date } | null> {
+  const user = await usersRepo.findByEmail(db, email);
+  if (!user) return null;
+  if (await usersRepo.isDeactivated(db, user.id)) return null;
+  const identity = await usersRepo.getPasswordIdentity(db, user.email);
+  if (!identity?.passwordHash) return null; // SSO-only account — no credential to reset
+
+  const now = new Date();
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: now })
+    .where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt)));
+
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(now.getTime() + RESET_TTL_MINUTES * 60_000);
+  await db.insert(passwordResetTokens).values({
+    userId: user.id,
+    tokenHash: tokenId(token),
+    expiresAt,
+  });
+
+  // Delivery stub — swap for the mailer when SMTP/provider env exists.
+  console.info(
+    "[cogitex] PASSWORD RESET LINK (delivery pending mailer — stub): /reset?token=" + token,
+  );
+
+  return { token, expiresAt };
+}
+
+/**
+ * Complete a password reset: token must be unused and unexpired. Marks it
+ * consumed and updates ONLY that account's password-identity hash. Returns
+ * false for unknown/expired/reused tokens with no distinct error surface.
+ */
+export async function confirmPasswordReset(
+  db: AppDb,
+  token: string,
+  newPassword: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select()
+    .from(passwordResetTokens)
+    .where(
+      and(
+        eq(passwordResetTokens.tokenHash, tokenId(token)),
+        isNull(passwordResetTokens.usedAt),
+        gt(passwordResetTokens.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  if (!row) return false;
+
+  const hash = await hashPassword(newPassword);
+  await usersRepo.setPasswordHash(db, row.userId, hash);
+  await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, row.id));
+  return true;
 }

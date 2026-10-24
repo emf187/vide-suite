@@ -45,6 +45,17 @@ export const usersRepo = {
     return rows[0] ?? null;
   },
 
+  /** Set the credential hash on a user's password identity (single update). */
+  async setPasswordHash(db: AppDb, userId: string, passwordHash: string): Promise<void> {
+    const rows = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+    const email = rows[0]?.email;
+    if (!email) throw new Error("user_not_found");
+    await db
+      .update(userAuthIdentities)
+      .set({ passwordHash })
+      .where(and(eq(userAuthIdentities.provider, "password"), eq(userAuthIdentities.subject, email)));
+  },
+
   /** Tenant safety net: a deactivated user must never build a Ctx. */
   async isDeactivated(db: AppDb, userId: string): Promise<boolean> {
     const rows = await db

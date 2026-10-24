@@ -88,6 +88,24 @@ export const userAuthIdentities = pgTable("user_auth_identities", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("user_auth_identities_provider_subject_key").on(t.provider, t.subject)]);
 
+/**
+ * M0 security fix companion: password resets are expiring, single-use tokens
+ * stored HASHED (sha256 of the raw token) so a DB dump cannot mint links.
+ * Request flow: hash token, 30-minute TTL, requesting a new token burns all
+ * previous unused ones for the user.
+ */
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("password_reset_tokens_hash_key").on(t.tokenHash),
+  index("password_reset_tokens_user_idx").on(t.userId),
+]);
+
 export const memberships = pgTable("memberships", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),

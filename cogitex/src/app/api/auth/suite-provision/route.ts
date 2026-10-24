@@ -1,12 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/server/db/client";
-import { userAuthIdentities, users } from "@/server/db/schema";
 import { signUpSchema } from "@/lib/shared/validators";
 import { createAccount } from "@/server/services/accounts";
-import { hashPassword } from "@/server/auth/password";
-import { usersRepo } from "@/server/repos/users";
 
 /**
  * SUITE provisioning (server-to-server, called by the VIDE console's
@@ -14,10 +10,12 @@ import { usersRepo } from "@/server/repos/users";
  * console hands account creation here. Bearer: the SAME shared AUTH_SECRET.
  *
  * - fresh email → creates the org + owner user with the given password
- * - existing email → sets a new password on that account (suite-demo semantics:
- *   the console is the trusted local operator; a production deploy would demand
- *   email proof instead).
- *   A deactivated account is never touched.
+ * - existing email → REFUSED. Account creation must never overwrite an
+ *   existing account: re-provisioning an email can NEVER change that
+ *   account's password. The response does not reveal whether the account is
+ *   deactivated or which auth identities it has. Password changes go through
+ *   the expiring, single-use token flow (accounts service — the email
+ *   delivery step is stubbed until a mailer is configured).
  */
 export async function POST(request: NextRequest): Promise<Response> {
   const secret = process.env.AUTH_SECRET;
@@ -48,20 +46,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, mode: "created" }, { status: 201 });
   }
 
-  // email_conflict → RESET flow: set a new password on the existing account.
-  const email = parsed.data.email.toLowerCase();
-  const identity = await usersRepo.getPasswordIdentity(db, email);
-  if (!identity) {
-    // exists but without a password identity (SSO-provided only) — do not touch
-    return NextResponse.json({ ok: false, error: "no_password_identity" }, { status: 409 });
-  }
-  if (await usersRepo.isDeactivated(db, identity.userId)) {
-    return NextResponse.json({ ok: false, error: "deactivated" }, { status: 403 });
-  }
-  const hash = await hashPassword(parsed.data.password);
-  await db
-    .update(userAuthIdentities)
-    .set({ passwordHash: hash })
-    .where(and(eq(userAuthIdentities.provider, "password"), eq(userAuthIdentities.subject, email)));
-  return NextResponse.json({ ok: true, mode: "password_reset" }, { status: 200 });
+  // email_conflict → hard refusal, zero credential writes. An existing
+  // account is NEVER overwritten by provisioning; password changes go
+  // through the expiring single-use token flow only.
+  console.info("[cogitex] suite-provision refused: email already exists (no overwrite)");
+  return NextResponse.json({ ok: false, error: "email_exists" }, { status: 409 });
 }

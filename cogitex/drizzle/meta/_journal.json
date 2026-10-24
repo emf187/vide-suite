@@ -92,6 +92,13 @@
       "when": 1792850340179,
       "tag": "0012_large_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792856030597,
+      "tag": "0013_password_resets",
+      "breakpoints": true
     }
   ]
 }

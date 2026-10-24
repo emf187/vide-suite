@@ -1126,4 +1126,25 @@ Machine page headers now carry a PRINT DOSSIER next to EDIT.
 scoping/filter/actor/limit + 2 brand-contract, plus the reports CSV brand line
 assertion now pinning ORGO)**
 
+## Sprint 9 — Custos begins: M0 security fix (2026-10-24)
+
+**M0 — sign-up can never overwrite an existing account.** The hole: the suite
+provisioning route re-set the password of ANY existing email it was handed
+("suite-demo semantics" — the trusted-local-operator assumption). Fixed: an
+existing email is now a hard refusal (`409 email_exists`), zero credential
+writes, and the response no longer reveals deactivation or identity shape.
+Creation still flows through the audited one-transaction path unchanged.
+
+**Token-based password resets.** New `password_reset_tokens` table
+(migration `0013_password_resets.sql`), hash-at-rest (sha256 of the raw
+token), 30-minute TTL, single-use, and requesting a new token burns every
+previous unused token of that user. `accountsService.requestPasswordReset /
+confirmPasswordReset`; the email-delivery step is an explicitly marked stub
+(a mailer env comes later). Unknown, deactivated or SSO-only accounts return
+silent nulls — no account-existence oracle.
+
+**Tests/verification:** tsc clean; **238 passing (from 233; the 5-test M0
+suite proves the refusal keeps the original hash byte-identical, burning,
+single-use, expiry, and silence)**
+
 
