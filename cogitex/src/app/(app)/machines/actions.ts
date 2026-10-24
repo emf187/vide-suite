@@ -386,6 +386,30 @@ export async function deleteMachineNoteAction(form: FormData): Promise<void> {
   redirect(`/machines/${machineId}?tab=notes&note=removed`);
 }
 
+/**
+ * Documentation edition (docs & multimedia sprint): rewrite a note in place.
+ * Service enforces author-or-planner; viewers get forbidden.
+ */
+export async function editMachineNoteAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  const machineId = tagOf(form);
+  const noteId = String(form.get("noteId") ?? "");
+  const title = String(form.get("title") ?? "");
+  const body = String(form.get("body") ?? "");
+  if (!noteId) redirect(`/machines/${machineId}?tab=notes&note_error=not_found`);
+  if (!body.trim()) redirect(`/machines/${machineId}?tab=notes&note_error=body`);
+  const { notesService } = await import("@/server/services/machine-notes");
+  try {
+    await notesService.edit(ctx, machineId, noteId, { title, body });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}?tab=notes&note_error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/machines/${machineId}`);
+  revalidatePath("/library");
+  redirect(`/machines/${machineId}?tab=notes&note=edited`);
+}
+
 /* ---------------- CSV import ---------------- */
 
 export async function stageMachineImportAction(form: FormData): Promise<void> {

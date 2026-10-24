@@ -6,8 +6,23 @@ import { auditRepo } from "@/server/repos/audit";
 import { createHash } from "node:crypto";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file in M1 (DB-backed storage)
+/** Multimedia sprint: camera/video/audio clips — the DB bytea store holds them like anything else. */
+const MEDIA_BYTES = 10 * 1024 * 1024; // 10 MB (serverless responses cap ~4.5 MB, so previews stream buffered clips honestly)
 const ALLOWED_PREFIXES = ["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain", "text/csv"];
+const MEDIA_PREFIXES = [
+  "image/gif",
+  "video/mp4", "video/webm", "video/quicktime",
+  "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm",
+];
 const DANGEROUS_NAMES = /\.(exe|bat|cmd|js|vbs|ps1|sh|dll|scr)$/i;
+
+const ALL_PREFIXES = [...ALLOWED_PREFIXES, ...MEDIA_PREFIXES];
+
+/** Media family gets the bigger cap; playback streams via /api/documents/[id] (documented in DATA_MODEL §3.5). */
+function isMediaMime(mimeType: string): boolean {
+  return mimeType.startsWith("video/") || mimeType.startsWith("audio/");
+}
+
 
 /**
  * Documents service (docs/DATA_MODEL.md documents + storage adapter note).
@@ -27,8 +42,11 @@ export const documentsService = {
     },
   ): Promise<DocumentRow> {
     if (input.bytes.byteLength === 0) throw new Error("empty_file");
-    if (input.bytes.byteLength > MAX_BYTES) throw new Error("file_too_large:5MB");
-    const safeMime = ALLOWED_PREFIXES.some((p) => input.mimeType.startsWith(p)) ? input.mimeType : "application/octet-stream";
+    const media = isMediaMime(input.mimeType);
+    if (input.bytes.byteLength > (media ? MEDIA_BYTES : MAX_BYTES)) {
+      throw new Error(media ? "file_too_large:media_10MB" : "file_too_large:5MB");
+    }
+    const safeMime = ALL_PREFIXES.some((p) => input.mimeType.startsWith(p)) ? input.mimeType : "application/octet-stream";
     const scanStatus = DANGEROUS_NAMES.test(input.name) ? "quarantined" : "unscanned";
 
     const db = await getDb();

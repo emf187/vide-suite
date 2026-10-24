@@ -49,4 +49,30 @@ describe("markdown renderer (escape-first, no raw passthrough)", () => {
     expect(md.split("\n")).toHaveLength(3); // header + sep + 1 row
     expect(truncated).toBe(1);
   });
+
+  it("renders markdown tables (notes and comments can carry tables)", () => {
+    const out = renderMarkdown("| part | qty |\n| --- | --- |\n| bearing | 2 |\n| seal | 1 |");
+    expect(out).toContain('<table class="md-table">');
+    expect(out).toContain("<th>part</th>");
+    expect(out).toContain("<td>bearing</td>");
+    expect(out).toContain("<td>2</td>");
+    expect(out).not.toContain("<p>|");
+  });
+
+  it("table alignment markers are honored and cells stay escaped", () => {
+    const out = renderMarkdown("| left | mid | right |\n| --- | :-: | ---: |\n| l | c | r |");
+    expect(out).toContain('style="text-align:center"');
+    expect(out).toContain('style="text-align:right"');
+    // raw HTML in a cell never survives
+    const evil = renderMarkdown("| a | b |\n| --- | --- |\n| <script>1</script> | ok |");
+    expect(evil).not.toContain("<script>");
+    expect(evil).toContain("&lt;script&gt;");
+  });
+
+  it("escaped pipes inside cells (\\|) render literally; non-table pipes stay paragraphs", () => {
+    const out = renderMarkdown("| col |\n| --- |\n| stuff \\| more |");
+    expect(out).toContain("stuff | more");
+    const notTable = renderMarkdown("just one | pipe line here");
+    expect(notTable).toContain("<p>just one | pipe line here</p>");
+  });
 });

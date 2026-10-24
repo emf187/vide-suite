@@ -16,6 +16,7 @@ import {
   type MachineNote,
 } from "@/server/db/schema";
 import { auditRepo } from "@/server/repos/audit";
+import { can } from "@/server/policies";
 import { documentsService } from "./documents";
 import { machinesService } from "./machines";
 import { parseCsv } from "@/lib/csv/parse";
@@ -119,6 +120,59 @@ export const notesService = {
       entityId: machineId,
       diff: { noteId },
     });
+  },
+
+  /**
+   * Documentation edition (docs & multimedia sprint): rewrite title/body in
+   * place. Audited as machine.note_edited; source and the import linkage are
+   * never rewritten — imported notes stay marked as imports.
+   */
+  async edit(
+    ctx: Ctx,
+    machineId: string,
+    noteId: string,
+    input: { title: string; body: string },
+  ): Promise<MachineNote> {
+    const machine = await machinesService.byId(ctx, machineId);
+    if (!machine) throw new Error("machine_not_found");
+    const title = input.title.trim() || "Untitled note";
+    if (!input.body.trim()) throw new Error("body_required");
+    if (input.body.length > MAX_NOTE_BODY) throw new Error(`body_too_large:${MAX_NOTE_BODY}`);
+    const db = await getDb();
+    const rows = await db
+      .select()
+      .from(machineNotes)
+      .where(
+        and(
+          eq(machineNotes.organizationId, ctx.orgId),
+          eq(machineNotes.machineId, machineId),
+          eq(machineNotes.id, noteId),
+          isNull(machineNotes.deletedAt),
+        ),
+      )
+      .limit(1);
+    const existing = rows[0];
+    if (!existing) throw new Error("note_not_found");
+    // note edition is author-or-planner (MaintainX rule); viewers never write
+    if (!can(ctx.roles, "plan.manage") && existing.createdBy !== ctx.userId) {
+      throw new Error("forbidden:plan.manage");
+    }
+    const updatedRows = await db
+      .update(machineNotes)
+      .set({ title, body: input.body, updatedAt: new Date() })
+      .where(eq(machineNotes.id, noteId))
+      .returning();
+    const updated = updatedRows[0];
+    if (!updated) throw new Error("note edit returned no rows");
+    await auditRepo.log(db, {
+      organizationId: ctx.orgId,
+      actorUserId: ctx.userId,
+      action: "machine.note_edited",
+      entityType: "machine",
+      entityId: machineId,
+      diff: { noteId, title, bodyChanged: input.body !== existing.body },
+    });
+    return updated;
   },
 
   /**

@@ -152,6 +152,8 @@ export const faultsWriteService = {
       source: "manual",
       status: "planned",
       plannedStart: null,
+      // immutable provenance on the card's comment thread — the VIDE leg of the story
+      provenance: `Converted from VIDE fault event: ${fault.faultType} flagged on ${fault.videMachineName}${fault.flaggedAt ? ` at ${fault.flaggedAt.toISOString().slice(0, 10)}` : ""}.`,
     });
     await db.update(faultEvents).set({ status: "converted", woId: wo.id }).where(eq(faultEvents.id, fault.id));
     await auditRepo.log(db, {

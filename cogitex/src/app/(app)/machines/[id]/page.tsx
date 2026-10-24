@@ -20,6 +20,7 @@ import {
   deleteDocumentAction,
   deleteMachineExpenseAction,
   deleteMachineNoteAction,
+  editMachineNoteAction,
   importMachineNoteAction,
   saveComponentGridAction,
   transitionLifecycleAction,
@@ -299,6 +300,7 @@ export default async function MachineProfilePage({
           notes={await loadNotes(ctx, machine.id)}
           machineId={machine.id}
           mayPlan={mayPlan}
+          viewerId={ctx.userId}
           flags={{ note: sp.note, noteError: sp.note_error }}
         />
       ) : null}
@@ -620,16 +622,19 @@ function NotesTab({
   notes,
   machineId,
   mayPlan,
+  viewerId,
   flags,
 }: {
   notes: Awaited<ReturnType<typeof notesService.list>>;
   machineId: string;
   mayPlan: boolean;
+  viewerId: string;
   flags: { note?: string; noteError?: string };
 }) {
   return (
     <>
       {flags.note === "added" ? <div className="card"><span className="ok-text">Note saved.</span></div> : null}
+      {flags.note === "edited" ? <div className="card"><span className="ok-text">Note edited (audited).</span></div> : null}
       {flags.note === "imported" ? (
         <div className="card"><span className="ok-text">File imported — original stored on the ATTACHMENTS tab, note below.</span></div>
       ) : null}
@@ -647,22 +652,37 @@ function NotesTab({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {notes.map((n) => (
-              <div key={n.id} style={{ borderBottom: "1px solid var(--line3)", paddingBottom: 10 }}>
+              <div key={n.id} id={`note-${n.id}`} style={{ borderBottom: "1px solid var(--line3)", paddingBottom: 10, scrollMarginTop: 12 }}>
                 <div className="row" style={{ alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap" }}>
                   <div>
                     <strong style={{ fontSize: 13 }}>{n.title}</strong>
                     <span style={{ fontSize: 10, color: "var(--dim2)", marginLeft: 8 }}>
                       {n.source === "typed" ? "typed" : n.source} · {formatDateTime(n.createdAt)}
+                      {n.updatedAt > n.createdAt ? <> · edited</> : null}
                       {n.documentId ? <> · <Link href={`/machines/${machineId}/docs/${n.documentId}`} style={{ color: "var(--accent)", textDecoration: "none" }}>ORIGINAL FILE</Link></> : null}
                     </span>
                   </div>
-                  {mayPlan ? (
-                    <form action={deleteMachineNoteAction}>
-                      <input type="hidden" name="machineId" value={machineId} />
-                      <input type="hidden" name="noteId" value={n.id} />
-                      <button type="submit" className="secondary" style={{ fontSize: 9, padding: "2px 6px" }}>DEL</button>
-                    </form>
-                  ) : null}
+                  <div className="row" style={{ gap: 6 }}>
+                    {mayPlan || viewerId === n.createdBy ? (
+                      <details>
+                        <summary style={{ fontSize: 9, color: "var(--accent)", cursor: "pointer", letterSpacing: 1, listStyle: "none" }}>EDIT</summary>
+                        <form action={editMachineNoteAction} style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 260 }}>
+                          <input type="hidden" name="machineId" value={machineId} />
+                          <input type="hidden" name="noteId" value={n.id} />
+                          <input name="title" defaultValue={n.title} aria-label="Note title" style={{ width: "100%" }} />
+                          <textarea name="body" rows={5} defaultValue={n.body} aria-label="Note body" style={{ width: "100%", fontFamily: "inherit", fontSize: 12 }} />
+                          <button type="submit" style={{ fontSize: 10, padding: "4px 10px" }}>SAVE NOTE</button>
+                        </form>
+                      </details>
+                    ) : null}
+                    {mayPlan ? (
+                      <form action={deleteMachineNoteAction}>
+                        <input type="hidden" name="machineId" value={machineId} />
+                        <input type="hidden" name="noteId" value={n.id} />
+                        <button type="submit" className="secondary" style={{ fontSize: 9, padding: "2px 6px" }}>DEL</button>
+                      </form>
+                    ) : null}
+                  </div>
                 </div>
                 <div style={{ marginTop: 6 }}>
                   <NoteBody body={n.body} />

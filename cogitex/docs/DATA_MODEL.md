@@ -477,6 +477,48 @@ created), reference.
   audits `purchase.started/paid/failed/abandoned`; the ledger trail duplicates neither
   audit content nor the purchases row — it is the per-purchase event log.
 
+### 3.15 Work-order comment thread + provenance rail (migration 0012, docs sprint)
+
+**wo_notes** (org, WO-scoped): id, organization_id FK CASCADE, work_order_id FK CASCADE,
+author_id FK SET NULL, kind (**`comment`** human thread | **`system`** provenance —
+written ONCE at creation and immutable: `system_note_immutable`), body (markdown,
+4 000-char cap, escape-first rendered, tables now included),
+document_id FK → documents SET NULL (camera/media evidence lives in the shared file-store),
+deleted_at (soft delete + audit), created_by, created/updated. INDEXES: (work_order,
+created_at), (org, created_at).
+
+- Service `src/server/services/wo-notes.ts`: `list` (oldest first), `add`
+  (audit `wo.comment_added`, with-attachment flag), `remove` (planners, audit
+  `wo.comment_removed`), low-level `system(writer)`. Tenancy: `wo_not_found` /
+  `note_not_found`, never a blind write.
+- **Provenance rail** (`workOrderWriteService.create`): schedule and agent sources
+  stamp an automatic system note; an explicit `provenance` string stamps even
+  manual cards. `faultsWriteService.convertToWorkOrder` stamps
+  *"Converted from VIDE fault event: <type> flagged on <device>"* — the VIDE leg of
+  the ecosystem stays visible on the card forever.
+- UI: COMMENTS / ACTIVITY card on `/work-orders/[id]` with the composer
+  (planners + `wo.execute` technicians; camera capture attribute on the file input).
+  Runtime: `serverActions.bodySizeLimit` raised to 10 MB; `Permissions-Policy`
+  `camera=(self)` so the capture control can actually open the camera.
+
+### 3.16 Documentation hub, note edition, multimedia (docs sprint; no new tables)
+
+- **Note edition**: `notesService.edit` (title/body in place, audited
+  `machine.note_edited`; source/document link never rewritten). Rule: the author or
+  `plan.manage` — viewers never write (`forbidden:plan.manage`). UI: inline
+  `<details>` EDIT forms on the machine's notes tab (no client JS).
+- **Library** (`/library`, service `src/server/services/library.ts`): org-wide search
+  across machine notes (title/body) AND documents (name) with a machine filter, pure
+  GET form. Every condition carries organization_id — cross-org leakage is
+  structurally impossible. Rows deep-link to the machine notes anchor
+  (`?tab=notes#note-<id>`); documents link straight to `/api/documents/<id>`.
+- **Multimedia**: documents accept `video/*`, `audio/*` and `image/gif` alongside the
+  existing set. Caps: **media family 10 MB**, documents (pdf/text/csv) stay 5 MB
+  (`file_too_large:media_10MB` / `file_too_large:5MB`). Document preview page renders
+  `<video>` / `<audio>` players; m4a/mpeg/mp4/webm/ogg/wav/quicktime in the allowlist.
+  DB bytea storage stays (S3 later); serverless responses cap ~4.5 MB, so larger
+  clips are honest downloads rather than streamable previews at the margin.
+
 ## 4. State machines
 
 ### 4.1 Machine lifecycle

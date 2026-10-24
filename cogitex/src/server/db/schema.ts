@@ -839,3 +839,37 @@ export const purchaseLedger = pgTable("purchase_ledger", {
 
 export type Purchase = typeof purchases.$inferSelect;
 export type PurchaseLedgerEntry = typeof purchaseLedger.$inferSelect;
+
+/* =====================================================================
+ * Documentation & multimedia sprint — work-order comment thread
+ * (docs/DATA_MODEL.md §3.15, migration 0012)
+ * ===================================================================== */
+
+/**
+ * MaintainX-style discussion thread on work orders. Two kinds and a hard rule:
+ * 'comment' rows are human conversation (soft-delete + audit); 'system' rows are
+ * provenance written ONCE at creation (PM schedule, VIDE fault conversion, agent
+ * proposal) and can never be edited or removed. Attachments reuse the documents
+ * file-store via document_id (camera photos land there with work_order_id set).
+ */
+export const woNotes = pgTable("wo_notes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  workOrderId: uuid("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+  /** 'comment' (human, deletable) | 'system' (provenance, immutable) */
+  kind: text("kind").notNull().default("comment"),
+  /** markdown, escape-first rendered like machine_notes */
+  body: text("body").notNull(),
+  /** optional photo/media attachment (documents file-store) */
+  documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("wo_notes_wo_idx").on(t.workOrderId, t.createdAt),
+  index("wo_notes_org_created_idx").on(t.organizationId, t.createdAt),
+]);
+
+export type WorkOrderNote = typeof woNotes.$inferSelect;

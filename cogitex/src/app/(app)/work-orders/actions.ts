@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import type { Ctx } from "@/server/ctx";
 import { requireCtx } from "@/server/ctx";
 import { can } from "@/server/policies";
@@ -16,6 +17,74 @@ function opt(form: FormData, key: string): string | undefined {
 
 const TYPES: WoType[] = ["corrective", "preventive", "inspection", "installation"];
 const PRIORITIES: WoPriority[] = ["low", "normal", "high", "critical"];
+
+/** writers of the comment thread: planners and executing technicians (documented) */
+function mayComment(ctx: Ctx): boolean {
+  return can(ctx.roles, "wo.plan") || can(ctx.roles, "wo.execute");
+}
+
+/**
+ * Add a comment to the card's thread — optionally with a camera/roll photo or a
+ * short video/audio attachment (documents file-store keeps the bytes with
+ * work_order_id set so the timeline is self-contained evidence).
+ */
+export async function addWOCommentAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  const workOrderId = String(form.get("workOrderId") ?? "");
+  if (!workOrderId) redirect("/work-orders?error=not_found");
+  if (!mayComment(ctx)) redirect(`/work-orders/${workOrderId}?error=forbidden`);
+  const body = String(form.get("body") ?? "").trim();
+  const file = form.get("photo");
+
+  let documentId: string | null = null;
+  try {
+    if (file instanceof File && file.size > 0) {
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const { documentsService } = await import("@/server/services/documents");
+      const doc = await documentsService.upload(ctx, {
+        workOrderId,
+        kind: "photo",
+        name: file.name || "camera photo",
+        mimeType: file.type || "image/jpeg",
+        bytes,
+      });
+      documentId = doc.id;
+    }
+    const { woNotesService } = await import("@/server/services/wo-notes");
+    await woNotesService.add(ctx, workOrderId, {
+      body: body || (documentId ? "(attached media)" : ""),
+      documentId,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    revalidatePath(`/work-orders/${workOrderId}`);
+    redirect(`/work-orders/${workOrderId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/work-orders/${workOrderId}`);
+  redirect(`/work-orders/${workOrderId}?commented=1`);
+}
+
+/** Remove a comment thread entry (planner only; immutable provenance rows refuse). */
+export async function removeWOCommentAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  const workOrderId = String(form.get("workOrderId") ?? "");
+  const noteId = String(form.get("noteId") ?? "");
+  if (!workOrderId || !noteId) redirect("/work-orders?error=not_found");
+  if (!can(ctx.roles, "wo.plan")) redirect(`/work-orders/${workOrderId}?error=forbidden`);
+  let message = "";
+  let ok = false;
+  try {
+    const { woNotesService } = await import("@/server/services/wo-notes");
+    await woNotesService.remove(ctx, workOrderId, noteId);
+    ok = true;
+  } catch (err) {
+    message = err instanceof Error ? err.message : String(err);
+  }
+  revalidatePath(`/work-orders/${workOrderId}`);
+  if (ok) redirect(`/work-orders/${workOrderId}?comment_removed=1`);
+  redirect(`/work-orders/${workOrderId}?error=${encodeURIComponent(message)}`);
+}
+
 
 export async function createWorkOrderAction(form: FormData): Promise<void> {
   const ctx = await requireCtx();

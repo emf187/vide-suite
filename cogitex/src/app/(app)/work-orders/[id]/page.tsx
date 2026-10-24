@@ -6,15 +6,19 @@ import { machinesService } from "@/server/services/machines";
 import { orgMembersService } from "@/server/services/org-members";
 import { workOrderService, WO_TRANSITIONS, type WoStatus } from "@/server/services/work-orders";
 import { inventoryService } from "@/server/services/inventory";
+import { woNotesService } from "@/server/services/wo-notes";
+import { renderMarkdown } from "@/lib/markdown";
 import { compileRepairAction } from "../../repairs/actions";
 import { formatDateTime } from "@/lib/time";
 import { formatKobo } from "@/lib/money";
 import {
   addPartLineAction,
+  addWOCommentAction,
   completeStepAction,
   issuePartAction,
   logLaborAction,
   releaseReservationAction,
+  removeWOCommentAction,
   reopenStepAction,
   reservePartAction,
   transitionWorkOrderAction,
@@ -35,7 +39,7 @@ export default async function WorkOrderDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; moved?: string; step?: string; labor?: string; part?: string }>;
+  searchParams: Promise<{ error?: string; moved?: string; step?: string; labor?: string; part?: string; commented?: string; comment_removed?: string }>;
 }) {
   const ctx = await getCtx();
   if (!ctx) return null;
@@ -44,7 +48,7 @@ export default async function WorkOrderDetailPage({
   const wo = await workOrderService.byId(ctx, id);
   if (!wo) notFound();
 
-  const [steps, labor, parts, machine, members, cost, reservations, compatibleItems, allItems] = await Promise.all([
+  const [steps, labor, parts, machine, members, cost, reservations, compatibleItems, allItems, thread] = await Promise.all([
     workOrderService.steps(ctx, wo.id),
     workOrderService.labor(ctx, wo.id),
     workOrderService.parts(ctx, wo.id),
@@ -54,6 +58,7 @@ export default async function WorkOrderDetailPage({
     inventoryService.reservationsForWorkOrder(ctx, wo.id),
     wo.machineId ? inventoryService.partsForMachine(ctx, wo.machineId) : Promise.resolve([]),
     inventoryService.list(ctx),
+    woNotesService.list(ctx, wo.id),
   ]);
   // picker options: machine-compatible spares first (✦), then the rest of active stock
   const compatibleIds = new Set(compatibleItems.map((c) => c.id));
@@ -64,6 +69,8 @@ export default async function WorkOrderDetailPage({
 
   const mayPlan = can(ctx.roles, "wo.plan");
   const mayExecute = can(ctx.roles, "wo.execute");
+  /** comment-thread writers: planners + executing technicians (viewers read) */
+  const mayComment = mayPlan || mayExecute;
   const machineName = machine?.tag ?? "—";
   const nexts = TERMINALS.includes(wo.status) ? [] : WO_TRANSITIONS[wo.status];
 
@@ -106,6 +113,76 @@ export default async function WorkOrderDetailPage({
           </tbody>
         </table>
         {wo.description ? <p style={{ fontSize: 12, color: "var(--dim)", margin: "8px 0 0" }}>{wo.description}</p> : null}
+      </div>
+
+      {/* ------------------------ comments / activity ------------------------ */}
+      <div className="card">
+        <div className="eyebrow">{`COMMENTS / ${thread.length}`}</div>
+        <p style={{ fontSize: 11, color: "var(--dim2)", margin: "4px 0 10px" }}>
+          Discussion and photos for this card. System entries state the provenance (PM schedule, VIDE fault, agent) and are immutable.
+        </p>
+        {sp.commented ? <div style={{ marginBottom: 8 }}><span className="ok-text" style={{ fontSize: 12 }}>Comment added.</span></div> : null}
+        {sp.comment_removed ? <div style={{ marginBottom: 8 }}><span className="ok-text" style={{ fontSize: 12 }}>Comment removed (audited).</span></div> : null}
+        {thread.length === 0 ? (
+          <p className="empty-state" style={{ margin: 0 }}>No comments yet — the thread starts with the first note.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {thread.map((n) => {
+              const author = members.find((m) => m.userId === n.authorId)?.name ?? (n.kind === "system" ? "system" : "removed member");
+              return (
+                <div key={n.id} style={{ borderBottom: "1px dashed var(--line)", paddingBottom: 8 }}>
+                  <div className="row" style={{ gap: 8, alignItems: "baseline", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                      <strong style={{ fontSize: 12 }}>{author}</strong>
+                      {n.kind === "system" ? (
+                        <span style={{ fontSize: 9, letterSpacing: 1, color: "var(--dim2)", border: "1px solid var(--line3)", borderRadius: 4, padding: "1px 6px" }}>PROVENANCE</span>
+                      ) : null}
+                      <span style={{ fontSize: 10, color: "var(--dim2)" }}>{formatDateTime(n.createdAt, ctx.timezone)}</span>
+                    </div>
+                    {n.kind === "comment" && mayPlan ? (
+                      <form action={removeWOCommentAction}>
+                        <input type="hidden" name="workOrderId" value={wo.id} />
+                        <input type="hidden" name="noteId" value={n.id} />
+                        <button type="submit" className="secondary" style={{ fontSize: 9, padding: "2px 8px" }}>REMOVE</button>
+                      </form>
+                    ) : null}
+                  </div>
+                  {/* escape-first markdown, same renderer as machine notes */}
+                  <div style={{ fontSize: 12, marginTop: 4 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(n.body) }} />
+                  {n.documentId ? (
+                    <p style={{ fontSize: 11, margin: "6px 0 0" }}>
+                      📎 <a href={`/api/documents/${n.documentId}`} style={{ color: "var(--accent)" }}>attached media</a>
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {mayComment ? (
+          <form action={addWOCommentAction} style={{ marginTop: 12 }}>
+            <input type="hidden" name="workOrderId" value={wo.id} />
+            <textarea
+              name="body"
+              rows={2}
+              maxLength={4000}
+              placeholder="Add a note for the card — markdown **bold** and lists work. What did you see?"
+              style={{ width: "100%", fontFamily: "inherit", fontSize: 12 }}
+            />
+            <div className="row" style={{ marginTop: 6, gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="file"
+                name="photo"
+                accept="image/*,video/mp4,video/webm,audio/*"
+                capture="environment"
+                style={{ fontSize: 11, maxWidth: 260 }}
+              />
+              <button type="submit">NOTE</button>
+            </div>
+          </form>
+        ) : (
+          <p style={{ fontSize: 11, color: "var(--dim2)", marginTop: 10 }}>Viewers read the thread; executing roles and planners write to it.</p>
+        )}
       </div>
 
       {/* ------------------------- status transitions ------------------------- */}

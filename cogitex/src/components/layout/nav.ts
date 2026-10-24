@@ -14,6 +14,7 @@ const ICONS = {
   settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2v0a2 2 0 0 1-2-2v0a2 2 0 0 1-2-2v-0.9a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-.33-1.82A1.65 1.65 0 0 0 2 13v-6a2 2 0 0 1 2-2 2 2 0 0 1 2 2v0a2 2 0 0 1 2 2v0a2 2 0 0 1 2 2v6a1.65 1.65 0 0 0-.33 1.82z"/></svg>',
   locations: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
   about: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  library: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="13" y2="11"/></svg>',
 };
 
 /** Sidebar navigation config. `milestone` gating marks not-yet-built destinations. */
@@ -41,6 +42,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/faults", label: "Faults", crumb: "OPERATE / FAULTS & ALARMS", milestone: null, icon: ICONS.faults },
       { href: "/inventory", label: "Inventory", crumb: "OPERATE / INVENTORY & LEDGER", milestone: null, icon: ICONS.inventory },
       { href: "/repairs", label: "Repair Requests", crumb: "MARKETPLACE / REPAIR REQUESTS", milestone: null, icon: ICONS.repairs },
+      { href: "/library", label: "Library", crumb: "DOCUMENTATION / LIBRARY", milestone: null, icon: ICONS.library },
     ],
   },
   {
