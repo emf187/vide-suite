@@ -376,6 +376,26 @@ model varchar, gateway_ref text, token_usage jsonb, created_at`.
 output_summary jsonb, executed bool (write tools pre-execution are logged as proposed), result ('ok'|'denied'|'confirmed_pending'|'executed'),
 error, at`. Security property tested in CI: the model-supplied payload never overrides `Ctx`.
 
+### 3.11 Machine profile v2 — maintenance history & expenditure log (M8, June-sprint item 1)
+
+**machine_expenses** (org, append-friendly: soft-delete + re-add, never edited)
+`id, organization_id, machine_id FK→machines CASCADE, work_order_id FK→work_orders SET NULL NULL,
+kind text DEFAULT 'other' ('service','contract','parts_direct','consumable','fuel','hire','calibration','training','other'),
+description NOT NULL, amount_kobo integer NOT NULL, vendor text NULL, reference text NULL,
+occurred_at timestamptz DEFAULT now(), source DEFAULT 'manual' ('manual'|'agent'|'import'),
+deleted_at, created_by, audit cols`.
+INDEXES: (machine_id, occurred_at), (organization_id, created_at).
+
+The **coherent data model rule**: work-order costs are NEVER copied here. `work_order_labor`
+and `work_order_parts` stay the single source of truth; `maintenanceHistoryService.forMachine`
+rolls them up at READ time (laborKobo = Σ(minutes × rate)/60 rounded once; partsKobo =
+Σ round(qty × unit_cost_kobo) from the immutable part lines). `machine_expenses` records
+ONLY the spend that bypasses a work order (cash service, fuel, hire, consumables,
+subcontractor invoices). Machine-level summary = WO-derived + manual, with a 365-day window
+variant, last-service stamp (latest concluded WO by actualEnd/closedAt) and open/concluded
+counts. Tenancy: every read and write is org-scoped; `add` refuses machines outside the org
+(`machine_not_found`). Add/remove are audited (`machine.expense_added` / `machine.expense_removed`).
+
 ## 4. State machines
 
 ### 4.1 Machine lifecycle

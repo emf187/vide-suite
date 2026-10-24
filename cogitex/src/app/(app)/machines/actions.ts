@@ -9,6 +9,7 @@ import { documentsService } from "@/server/services/documents";
 import { machineImportService } from "@/server/services/machine-import";
 import { machinesService, machinesWriteService } from "@/server/services/machines";
 import { areasService, sitesService } from "@/server/services/sites";
+import { nairaToKobo } from "@/lib/money";
 
 function assertRole(ctx: Ctx): void {
   if (!can(ctx.roles, "plan.manage")) throw new Error("forbidden: requires owner/admin/maintenance_manager");
@@ -214,6 +215,67 @@ export async function addComponentAction(form: FormData): Promise<void> {
   });
   revalidatePath(`/machines/${machineId}`);
   redirect(`/machines/${machineId}?tab=parts&added=1`);
+}
+
+/* ---------------- expenditure log (machine profile v2) ---------------- */
+
+const EXPENSE_KINDS_SERVER = [
+  "service", "contract", "parts_direct", "consumable", "fuel", "hire",
+  "calibration", "training", "other",
+] as const;
+
+export async function addMachineExpenseAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  assertRole(ctx);
+  const machineId = tagOf(form);
+  const description = String(form.get("description") ?? "").trim();
+  const amountRaw = Number(String(form.get("amount") ?? "").replace(/,/g, ""));
+  if (!Number.isFinite(amountRaw) || amountRaw <= 0) {
+    redirect(`/machines/${machineId}?tab=maintenance&expense_error=amount`);
+  }
+  const kindRaw = String(form.get("kind") ?? "other");
+  const kind = (EXPENSE_KINDS_SERVER as readonly string[]).includes(kindRaw) ? (kindRaw as (typeof EXPENSE_KINDS_SERVER)[number]) : "other";
+  const occurredRaw = opt(form, "occurredAt"); // yyyy-mm-dd from type=date
+  let occurredAt: Date;
+  if (occurredRaw) {
+    const d = new Date(`${occurredRaw}T12:00:00Z`);
+    if (Number.isNaN(d.getTime())) redirect(`/machines/${machineId}?tab=maintenance&expense_error=date`);
+    occurredAt = d;
+  } else {
+    occurredAt = new Date();
+  }
+  const { expensesService } = await import("@/server/services/machine-history");
+  try {
+    await expensesService.add(ctx, machineId, {
+      kind,
+      description: description || "Logged expenditure",
+      amountKobo: nairaToKobo(amountRaw),
+      vendor: opt(form, "vendor"),
+      reference: opt(form, "reference"),
+      occurredAt,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}?tab=maintenance&expense_error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/machines/${machineId}`);
+  redirect(`/machines/${machineId}?tab=maintenance&expense=added`);
+}
+
+export async function deleteMachineExpenseAction(form: FormData): Promise<void> {
+  const ctx = await requireCtx();
+  assertRole(ctx);
+  const machineId = tagOf(form);
+  const expenseId = String(form.get("expenseId") ?? "");
+  const { expensesService } = await import("@/server/services/machine-history");
+  try {
+    await expensesService.remove(ctx, machineId, expenseId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/machines/${machineId}?tab=maintenance&expense_error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/machines/${machineId}`);
+  redirect(`/machines/${machineId}?tab=maintenance&expense=removed`);
 }
 
 /* ---------------- CSV import ---------------- */

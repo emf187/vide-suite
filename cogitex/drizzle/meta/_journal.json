@@ -64,6 +64,13 @@
       "when": 1792519866845,
       "tag": "0008_0008_agent_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792846055541,
+      "tag": "0009_lumpy_romulus",
+      "breakpoints": true
     }
   ]
 }

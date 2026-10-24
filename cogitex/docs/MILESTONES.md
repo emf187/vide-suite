@@ -793,3 +793,48 @@ future-proof, professional, and scales well on a phone."
   every pass (create-account -> VIDE session -> planner / -> /today 200
   FLEET). Commits: cogitex 88ae660/6be5d5f/05c2b61, vide 4273c38/d306d35/
   8b8d6ec/fea2ea7.
+
+## UPGRADE SPRINT item 1 — Machine profile v2: maintenance history + expenditure log ✅
+
+**Commit:** `machine profile v2 — MAINTENANCE tab live with WO history + per-machine expenditure log (migration 0009 machine_expenses)`
+
+The agreed upgrade sprint (documentation v1.0 §10.5) starts here. One coherent
+data model for "what has this machine ever cost us / been through":
+
+- **MAINTENANCE tab is no longer a placeholder.** It is now the machine's
+  story: MACHINE STORY header (last service + WO number, open/done count,
+  12-month spend, lifetime spend with labor/parts/manual split), a full
+  work-order history table (number → card, type, status with color, finished
+  date, downtime, per-card cost) and the manual EXPENDITURE LOG.
+- **Expenditure log (`machine_expenses`, migration 0009):** the spend that
+  bypasses work orders — cash service, fuel, hire, consumables,
+  subcontractor invoices. Kinds: service/contract/parts_direct/consumable/
+  fuel/hire/calibration/training/other; vendor + invoice reference + actual
+  occurred-at date; source manual|agent|import. Logged in naira (kobo
+  integers underneath, `nairaToKobo`). Append-friendly: corrections DELETE
+  (audited) and re-add — no edit path. Tenancy hardened: `add` refuses
+  foreign-org machines outright.
+- **The coherent rule (the important one):** work-order costs are NEVER
+  duplicated into the new table. `maintenanceHistoryService.forMachine`
+  rolls up labor (Σ minutes × rate / 60, rounded once) and issued-parts
+  (Σ qty × issue-time unit cost) from the existing ledger tables at READ
+  time, then adds manual expenses on top. Lifetime = WO-derived + logged;
+  a 365-day window variant feeds the SPEND — LAST 12 MONTHS tile.
+- Forms are plain server actions (progressive enhancement preserved — the
+  no-JS protocol stays intact); only `plan.manage` roles may add/delete.
+- Audited: `machine.expense_added` / `machine.expense_removed`.
+
+**Tests/verification:** tsc clean; **142 passing (from the pre-sprint 135;
+7 new)** — WO rollup math, last-service stamp from the latest concluded
+card, open/concluded split, 365-day window exclusion of old manual spend,
+soft-delete + audit + double-remove refusal, validation (positive integer
+kobo, kind whitelist, description, foreign machine),
+live cross-tenancy isolation, and the agent-facing summary shape that
+sprint item 5 will wire the LLM tools onto.
+
+**Next — item 2:** notes/docs with import support (reuse the document
+store; MD first, CSV/XLSX second, PDF/DOCX preview only), then item 3
+inline grid editing, item 4 demo-mode purchase module (Paystack test keys),
+item 5 threading the agent through all of it ("show UKR chiller's last
+service and spend" — the pitch moment).
+

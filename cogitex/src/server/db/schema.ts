@@ -713,3 +713,45 @@ export type Machine = typeof machines.$inferSelect;
 export type MachineComponent = typeof machineComponents.$inferSelect;
 export type MachineLifecycleEntry = typeof machineLifecycleLog.$inferSelect;
 export type DocumentRow = typeof documents.$inferSelect;
+
+/* =====================================================================
+ * M8 — Machine profile v2: maintenance history + expenditure log
+ * (one coherent data model: the machine's money story = WO-derived costs
+ * [computed, never duplicated] + a manual logbook of everything else)
+ * ===================================================================== */
+
+/**
+ * Manual expenditure log per machine — the spend that never flows through a
+ * work order (contract services bought cash, fuel, hire of a generator,
+ * consumables, subcontractor invoices...). WO labor/parts costs stay the
+ * source of truth in work_order_labor / work_order_parts and are ROLLED UP
+ * at read time by maintenanceHistoryService — this table must never duplicate
+ * them. Append-friendly: corrections delete (audited) and re-add.
+ */
+export const machineExpenses = pgTable("machine_expenses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  machineId: uuid("machine_id").notNull().references(() => machines.id, { onDelete: "cascade" }),
+  /** optional link to the work order this spend belongs beside (context only) */
+  workOrderId: uuid("work_order_id").references(() => workOrders.id, { onDelete: "set null" }),
+  /** service | contract | parts_direct | consumable | fuel | hire | calibration | training | other */
+  kind: text("kind").notNull().default("other"),
+  description: text("description").notNull(),
+  /** integer kobo — machine_expenses carries its own currency via the org (NGN default) */
+  amountKobo: integer("amount_kobo").notNull(),
+  vendor: text("vendor"),
+  /** invoice / receipt / PO reference for the paper trail */
+  reference: text("reference"),
+  /** when the money was actually spent (not when the row was typed) */
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  source: text("source").notNull().default("manual"), // manual | agent | import
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("machine_expenses_machine_idx").on(t.machineId, t.occurredAt),
+  index("machine_expenses_org_created_idx").on(t.organizationId, t.createdAt),
+]);
+
+export type MachineExpense = typeof machineExpenses.$inferSelect;
