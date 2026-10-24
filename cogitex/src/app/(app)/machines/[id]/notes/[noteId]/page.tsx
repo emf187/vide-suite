@@ -5,8 +5,9 @@ import { can } from "@/server/policies";
 import { machinesService } from "@/server/services/machines";
 import { notesService } from "@/server/services/machine-notes";
 import { renderMarkdown } from "@/lib/markdown";
-import { INSERT_BLOCKS, NOTE_BODY_MAX } from "@/lib/note-editor";
+import { NOTE_BODY_MAX } from "@/lib/note-editor";
 import { saveNoteEditorAction } from "../../../actions";
+import NoteEditorSurface from "./NoteEditorSurface";
 import { formatDateTime } from "@/lib/time";
 
 export const metadata = { title: "Note editor" };
@@ -87,22 +88,6 @@ export default async function NoteEditorPage({
         <input type="hidden" name="machineId" value={machine.id} />
         <input type="hidden" name="noteId" value={note.id} />
 
-        {/* insert toolbar — appends block skeletons and persists the draft */}
-        <div className="row" style={{ flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          {INSERT_BLOCKS.map((b) => (
-            <button
-              key={b.kind}
-              type="submit"
-              name="intent"
-              value={`append:${b.kind}`}
-              className="secondary"
-              style={{ fontSize: 10, padding: "4px 10px" }}
-            >
-              + {b.label}
-            </button>
-          ))}
-        </div>
-
         <input
           name="title"
           defaultValue={note.title}
@@ -110,20 +95,15 @@ export default async function NoteEditorPage({
           aria-label="Note title"
           style={{ width: "100%", fontSize: 16, fontWeight: 600, marginBottom: 8 }}
         />
-        <textarea
-          name="body"
-          rows={22}
-          defaultValue={note.body}
-          placeholder={"Type freely — markdown works: **bold**, lists, `code`, and tables:\n| col | col |\n| --- | --- |\n| a | b |"}
-          aria-label="Note body"
-          style={{ width: "100%", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: 13, lineHeight: 1.55, padding: 12 }}
-        />
+
+        {/* toolbar + writing surface — the one client-JS island (cursor-aware); saves stay server-side */}
+        <NoteEditorSurface body={note.body} placeholder="Type freely — markdown works: **bold**, lists, `code`, tables…" />
 
         <div className="row" style={{ marginTop: 10, gap: 8 }}>
           <button type="submit" name="intent" value="save">SAVE NOTE</button>
           <button type="submit" name="intent" value="preview" className="secondary">PREVIEW</button>
           <span style={{ fontSize: 10, color: "var(--dim2)" }}>
-            Toolbar and PREVIEW keep everything saved; SAVE marks the final word.
+            Toolbar edits stay in this page until you save or preview.
           </span>
         </div>
       </form>

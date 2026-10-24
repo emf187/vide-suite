@@ -8,6 +8,10 @@
  */
 
 export type InsertBlockKind =
+  | "bold"
+  | "italic"
+  | "inlinecode"
+  | "link"
   | "heading"
   | "bullets"
   | "numbered"
@@ -15,11 +19,15 @@ export type InsertBlockKind =
   | "rule"
   | "task";
 
-/** Insert-toolbar labels, in toolbar order. */
+/** Insert-toolbar labels, in toolbar order (inline marks first — a mini word processor). */
 export const INSERT_BLOCKS: ReadonlyArray<{ kind: InsertBlockKind; label: string }> = [
-  { kind: "heading", label: "HEADING" },
-  { kind: "bullets", label: "BULLET LIST" },
-  { kind: "numbered", label: "NUMBERED LIST" },
+  { kind: "bold", label: "B" },
+  { kind: "italic", label: "I" },
+  { kind: "inlinecode", label: "CODE" },
+  { kind: "link", label: "LINK" },
+  { kind: "heading", label: "H" },
+  { kind: "bullets", label: "• LIST" },
+  { kind: "numbered", label: "1. LIST" },
   { kind: "table", label: "TABLE" },
   { kind: "rule", label: "RULE" },
   { kind: "task", label: "TASK" },
@@ -29,6 +37,10 @@ export const INSERT_BLOCKS: ReadonlyArray<{ kind: InsertBlockKind; label: string
 export const NOTE_BODY_MAX = 60000;
 
 const SKELETONS: Record<InsertBlockKind, string> = {
+  bold: "**bold**\n",
+  italic: "*italic*\n",
+  inlinecode: "`code`\n",
+  link: "[link text](https://example.com)\n",
   heading: "## Heading\n",
   bullets: "- point one\n- point two\n",
   numbered: "1. step one\n2. step two\n",
@@ -36,7 +48,6 @@ const SKELETONS: Record<InsertBlockKind, string> = {
   rule: "---\n",
   task: "- [ ] todo\n",
 };
-
 /**
  * Append a block skeleton to the draft (with sane blank-line separation).
  * Throws `unknown_block` for anything not in INSERT_BLOCKS, and

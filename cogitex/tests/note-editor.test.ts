@@ -28,8 +28,10 @@ afterEach(() => {
 });
 
 describe("note editor block insertions", () => {
-  it("exposes the toolbar blocks in order", () => {
-    expect(INSERT_BLOCKS.map((b) => b.kind)).toEqual(["heading", "bullets", "numbered", "table", "rule", "task"]);
+  it("exposes the toolbar blocks in order (inline marks first — a mini word processor)", () => {
+    expect(INSERT_BLOCKS.map((b) => b.kind)).toEqual([
+      "bold", "italic", "inlinecode", "link", "heading", "bullets", "numbered", "table", "rule", "task",
+    ]);
   });
 
   it("inserts skeletons into empty and populated drafts with blank-line separation", () => {

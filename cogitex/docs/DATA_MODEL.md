@@ -528,6 +528,17 @@ created_at), (org, created_at).
   `src/lib/note-editor.ts` (`appendBlock`, `INSERT_BLOCKS`, `NOTE_BODY_MAX`
   = 60 000, matching the body cap); viewer/foreign notes load read-only;
   the notes-tab EDIT button deep-links here.
+- **Word-processor toolbar** (mini note app, follow-up): the note editor grew
+  cursor-aware formatting — B/I/CODE wrap-or-unwrap the selection, LINK turns a
+  selection into `[text](https://)`, H/•/1./TASK toggle line prefixes across
+  multi-line selections, TABLE/RULE insert at the cursor. The math is pure and
+  unit-tested (`src/lib/note-editing.ts`: `wrapInline`, `wrapLink`,
+  `toggleLinePrefix`, `insertSnippet`, all cap-guarded); the UI is ONE
+  deliberate client island on the editor page (`NoteEditorSurface.tsx`) inside
+  the unchanged server form — every other surface stays JS-free, persistence
+  still flows through the server action, and rendering stays server-side
+  escape-first. Progressive enhancement holds: without JS the same buttons
+  submit `append:` skeletons to the server.
 
 ## 4. State machines
 

@@ -1060,7 +1060,22 @@ editor cannot keep unsaved state across round-trips, so the design rule is
 explicit SAVE. Block skeletons live in `src/lib/note-editor.ts` and are
 unit-tested; the notes tab now deep-links EDIT straight into the editor.
 
-**Tests/verification:** tsc clean; **211 passing (from 204; 7 new)** —
+**Sprint item 5 — Word-processor toolbar (mini note app).** The note editor's
+writing surface became cursor-aware: **B** / *I* / `CODE` wrap or unwrap the
+selected text in place, LINK converts a selection into a markdown link with the
+cursor over the URL span, H / • LIST / 1. LIST / TASK toggle line prefixes
+across multi-line selections, TABLE and RULE insert exactly at the cursor — a
+live word/char counter rides along. The insertion math is pure, cap-guarded
+and unit-tested (`src/lib/note-editing.ts`); the UI is a single, deliberate
+client component (`NoteEditorSurface.tsx`) embedded in the unchanged server
+form, so SAVE/PREVIEW still go through the audited server action, every other
+page stays JS-free, and rendering remains server-side escape-first (the client
+never renders markdown, it only moves text). No-JS browsers keep full
+functionality through the same buttons' server `append:` fallback — progressive
+enhancement intact.
+
+**Tests/verification:** tsc clean; **227 passing (from 204; 23 new across the
+note-taker follow-ups)** —
 thread audit + soft-delete, system-note immutability (`system_note_immutable`),
 body caps, wrong-org `wo_not_found`/`note_not_found`, the provenance matrix
 (schedule/agent/manual + explicit), the VIDE fault→WO conversion stamp, media
