@@ -387,26 +387,44 @@ export async function deleteMachineNoteAction(form: FormData): Promise<void> {
 }
 
 /**
- * Documentation edition (docs & multimedia sprint): rewrite a note in place.
- * Service enforces author-or-planner; viewers get forbidden.
+ * Note-taker editor (the word-processor-style note page): one action serves
+ * every editor submit — toolbar inserts (`append:<block>`), PREVIEW and SAVE.
+ * Each interaction persists the draft first (a no-JS editor cannot carry
+ * unsaved state across a redirect), so nothing typed is lost mid-write; the
+ * audit trail only records the explicit SAVE.
  */
-export async function editMachineNoteAction(form: FormData): Promise<void> {
+export async function saveNoteEditorAction(form: FormData): Promise<void> {
   const ctx = await requireCtx();
   const machineId = tagOf(form);
   const noteId = String(form.get("noteId") ?? "");
+  if (!noteId) redirect(`/machines/${machineId}?tab=notes&note_error=not_found`);
+  const back = `/machines/${machineId}/notes/${noteId}`;
   const title = String(form.get("title") ?? "");
   const body = String(form.get("body") ?? "");
-  if (!noteId) redirect(`/machines/${machineId}?tab=notes&note_error=not_found`);
-  if (!body.trim()) redirect(`/machines/${machineId}?tab=notes&note_error=body`);
+  const intent = String(form.get("intent") ?? "save");
+
+  let workBody = body;
+  if (intent.startsWith("append:")) {
+    try {
+      const { appendBlock } = await import("@/lib/note-editor");
+      workBody = appendBlock(body, intent.slice("append:".length));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      redirect(`${back}?error=${encodeURIComponent(message)}`);
+    }
+  }
+
   const { notesService } = await import("@/server/services/machine-notes");
   try {
-    await notesService.edit(ctx, machineId, noteId, { title, body });
+    await notesService.edit(ctx, machineId, noteId, { title, body: workBody }, { audit: intent === "save" });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    redirect(`/machines/${machineId}?tab=notes&note_error=${encodeURIComponent(message)}`);
+    redirect(`${back}?error=${encodeURIComponent(message)}`);
   }
   revalidatePath(`/machines/${machineId}`);
   revalidatePath("/library");
+  if (intent === "preview") redirect(`${back}?preview=1`);
+  if (intent.startsWith("append:")) redirect(back);
   redirect(`/machines/${machineId}?tab=notes&note=edited`);
 }
 

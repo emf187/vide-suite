@@ -122,16 +122,38 @@ export const notesService = {
     });
   },
 
+  /** Org-scoped single note — the note editor's load path. */
+  async byId(ctx: Ctx, machineId: string, noteId: string): Promise<MachineNote | null> {
+    const db = await getDb();
+    const rows = await db
+      .select()
+      .from(machineNotes)
+      .where(
+        and(
+          eq(machineNotes.organizationId, ctx.orgId),
+          eq(machineNotes.machineId, machineId),
+          eq(machineNotes.id, noteId),
+          isNull(machineNotes.deletedAt),
+        ),
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  },
+
   /**
    * Documentation edition (docs & multimedia sprint): rewrite title/body in
    * place. Audited as machine.note_edited; source and the import linkage are
-   * never rewritten — imported notes stay marked as imports.
+   * never rewritten — imported notes stay marked as imports. The note-taker
+   * editor passes `audit: false` for silent draft-persistence writes
+   * (toolbar inserts / preview round-trips) and `audit: true` on explicit
+   * SAVE — the audit trail keeps meaningful saves, not every keystroke-step.
    */
   async edit(
     ctx: Ctx,
     machineId: string,
     noteId: string,
     input: { title: string; body: string },
+    opts: { audit?: boolean } = {},
   ): Promise<MachineNote> {
     const machine = await machinesService.byId(ctx, machineId);
     if (!machine) throw new Error("machine_not_found");
@@ -164,14 +186,16 @@ export const notesService = {
       .returning();
     const updated = updatedRows[0];
     if (!updated) throw new Error("note edit returned no rows");
-    await auditRepo.log(db, {
-      organizationId: ctx.orgId,
-      actorUserId: ctx.userId,
-      action: "machine.note_edited",
-      entityType: "machine",
-      entityId: machineId,
-      diff: { noteId, title, bodyChanged: input.body !== existing.body },
-    });
+    if (opts.audit !== false) {
+      await auditRepo.log(db, {
+        organizationId: ctx.orgId,
+        actorUserId: ctx.userId,
+        action: "machine.note_edited",
+        entityType: "machine",
+        entityId: machineId,
+        diff: { noteId, title, bodyChanged: input.body !== existing.body },
+      });
+    }
     return updated;
   },
 

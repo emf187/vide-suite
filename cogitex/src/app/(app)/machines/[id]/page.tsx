@@ -20,7 +20,6 @@ import {
   deleteDocumentAction,
   deleteMachineExpenseAction,
   deleteMachineNoteAction,
-  editMachineNoteAction,
   importMachineNoteAction,
   saveComponentGridAction,
   transitionLifecycleAction,
@@ -664,16 +663,9 @@ function NotesTab({
                   </div>
                   <div className="row" style={{ gap: 6 }}>
                     {mayPlan || viewerId === n.createdBy ? (
-                      <details>
-                        <summary style={{ fontSize: 9, color: "var(--accent)", cursor: "pointer", letterSpacing: 1, listStyle: "none" }}>EDIT</summary>
-                        <form action={editMachineNoteAction} style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 260 }}>
-                          <input type="hidden" name="machineId" value={machineId} />
-                          <input type="hidden" name="noteId" value={n.id} />
-                          <input name="title" defaultValue={n.title} aria-label="Note title" style={{ width: "100%" }} />
-                          <textarea name="body" rows={5} defaultValue={n.body} aria-label="Note body" style={{ width: "100%", fontFamily: "inherit", fontSize: 12 }} />
-                          <button type="submit" style={{ fontSize: 10, padding: "4px 10px" }}>SAVE NOTE</button>
-                        </form>
-                      </details>
+                      <Link href={`/machines/${machineId}/notes/${n.id}`}>
+                        <button type="button" style={{ fontSize: 9, padding: "2px 8px" }}>EDIT</button>
+                      </Link>
                     ) : null}
                     {mayPlan ? (
                       <form action={deleteMachineNoteAction}>

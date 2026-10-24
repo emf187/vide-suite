@@ -1047,7 +1047,20 @@ org-scoped. Notes deep-link to `?tab=notes#note-<id>` anchors; files open via
 rule) via inline `<details>` forms on the notes tab (add + edit + delete, no
 page reloads).
 
-**Tests/verification:** tsc clean; **204 passing (from 186; 18 new)** —
+**Sprint item 4 — Note-taker editor.** A dedicated full-page editor for every
+note (`/machines/[id]/notes/[noteId]`) — the word-processor surface the notes
+tab only hinted at: large distraction-free writing area (22-row monospace
+textarea), an INSERT toolbar (heading, bullet/numbered lists, table skeleton,
+rule, task) that appends block markdown, a PREVIEW of the rendered note (with
+tables), a markdown cheatsheet, word/character counts, and author-or-planner
+enforcement with read-only rendering for everyone else. Without client JS the
+editor cannot keep unsaved state across round-trips, so the design rule is
+"every interaction saves" — toolbar/preview writes persist silently
+(`audit:false`), the audit trail (`machine.note_edited`) records only the
+explicit SAVE. Block skeletons live in `src/lib/note-editor.ts` and are
+unit-tested; the notes tab now deep-links EDIT straight into the editor.
+
+**Tests/verification:** tsc clean; **211 passing (from 204; 7 new)** —
 thread audit + soft-delete, system-note immutability (`system_note_immutable`),
 body caps, wrong-org `wo_not_found`/`note_not_found`, the provenance matrix
 (schedule/agent/manual + explicit), the VIDE fault→WO conversion stamp, media

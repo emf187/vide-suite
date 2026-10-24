@@ -518,6 +518,16 @@ created_at), (org, created_at).
   `<video>` / `<audio>` players; m4a/mpeg/mp4/webm/ogg/wav/quicktime in the allowlist.
   DB bytea storage stays (S3 later); serverless responses cap ~4.5 MB, so larger
   clips are honest downloads rather than streamable previews at the margin.
+- **Note editor** (`/machines/[id]/notes/[noteId]`, follow-up): the full-page
+  note-taker surface — big writing area, INSERT toolbar (heading, bullet/numbered
+  list, 3×3 table skeleton, rule, task) and PREVIEW, all sharing one action
+  (`saveNoteEditorAction`). Every interaction persists the draft first
+  (`notesService.edit` with `audit:false` on toolbar/preview writes, audited SAVE
+  only) — a no-JS editor cannot carry unsaved state across a redirect, so the
+  rule is "nothing typed is ever lost". Block skeletons come from
+  `src/lib/note-editor.ts` (`appendBlock`, `INSERT_BLOCKS`, `NOTE_BODY_MAX`
+  = 60 000, matching the body cap); viewer/foreign notes load read-only;
+  the notes-tab EDIT button deep-links here.
 
 ## 4. State machines
 
