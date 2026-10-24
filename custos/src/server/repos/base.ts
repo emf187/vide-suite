@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AppDb } from "@/server/db/client";
 import { memberships, organizations, users, userAuthIdentities, type Membership, type Organization, type User } from "@/server/db/base";
+import type { Industry } from "@/lib/industries";
 
 export const usersRepo = {
   async findByEmail(db: AppDb, email: string): Promise<User | null> {
@@ -57,8 +58,11 @@ export const usersRepo = {
 };
 
 export const orgsRepo = {
-  async create(db: AppDb, input: { name: string; slug: string }): Promise<Organization> {
-    const rows = await db.insert(organizations).values({ name: input.name, slug: input.slug }).returning();
+  async create(db: AppDb, input: { name: string; slug: string; industry?: Industry }): Promise<Organization> {
+    const rows = await db
+      .insert(organizations)
+      .values({ name: input.name, slug: input.slug, industry: input.industry ?? "other" })
+      .returning();
     const org = rows[0];
     if (!org) throw new Error("org insert returned no rows");
     return org;

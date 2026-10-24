@@ -1,15 +1,19 @@
 /**
  * The inbound pipeline (brief §9) — identical for both messaging modes:
- * normalize (done upstream) → dedupe by wa_message_id → resolve the person →
- * consent rules → handler → send replies through the provider → everything
- * logged. Meta may deliver the same webhook more than once; the unique
- * wa_message_id insert makes a replay a no-op (idempotency is a test, M8).
+ * normalize (upstream) → dedupe by wa_message_id → resolve the person →
+ * CONSENT (§4.1: pending waits for START; STOP silences after one confirm) →
+ * handler → send replies through the provider → everything logged. Meta may
+ * deliver the same webhook more than once; the unique wa_message_id insert
+ * makes a replay a no-op (idempotency is a test).
  */
+import { eq } from "drizzle-orm";
 import { getDb, type AppDb } from "@/server/db/client";
-import { messageLog } from "@/server/db/schema";
+import { auditRepo } from "@/server/repos/audit";
+import { messageLog, persons } from "@/server/db/schema";
 import { BOT_MESSAGES } from "@/lib/bot/messages";
 import { personsService } from "@/server/services/persons";
-import { respondTo } from "./handler";
+import { respondTo, menuFor } from "./handler";
+import { dispatchReply } from "@/server/messaging/dispatch";
 import { getProvider } from "@/server/messaging/provider";
 import type { InboundEvent, MessagingProvider } from "@/server/messaging/types";
 
@@ -47,41 +51,65 @@ export async function processInbound(
 
   if (!person) {
     // One polite reply per unregistered message; nothing more, and it's logged.
-    await provider.sendText(ev.fromPhone, BOT_MESSAGES.unregistered);
+    await dispatchReply(provider, ev.fromPhone, [{ kind: "text", text: BOT_MESSAGES.unregistered }]);
     return { ok: true, mode: "unregistered" };
   }
 
-  if (person.consentStatus === "stopped" || person.deactivatedAt) {
+  if (person.deactivatedAt || person.consentStatus === "stopped") {
     return { ok: true, mode: "silent" };
   }
 
-  const replies = await respondTo(person, ev);
-  let sent = 0;
-  for (const reply of replies) {
-    switch (reply.kind) {
-      case "none":
-        break;
-      case "text":
-        await provider.sendText(person.phoneE164, reply.text);
-        sent += 1;
-        break;
-      case "buttons":
-        await provider.sendButtons(person.phoneE164, reply.text, reply.buttons);
-        sent += 1;
-        break;
-      case "list":
-        await provider.sendList(person.phoneE164, reply.text, reply.sections);
-        sent += 1;
-        break;
-      case "template":
-        await provider.sendTemplate(person.phoneE164, reply.name, reply.variables, reply.buttons);
-        sent += 1;
-        break;
-      case "document":
-        await provider.sendDocument(person.phoneE164, reply.url, reply.caption);
-        sent += 1;
-        break;
+  if (person.consentStatus === "pending") {
+    // The PERSON owns consent: only an explicit START opts them in.
+    if ((ev.body ?? "").trim().toLowerCase() === "start") {
+      await flipConsent(db, person, "opted_in");
+      const orgName = await orgNameFor(db, person.organizationId);
+      const sent = await dispatchReply(provider, person.phoneE164, [
+        { kind: "text", text: BOT_MESSAGES.welcome(person.name, person.role, orgName ?? "your workplace") },
+      ]);
+      const menuSent = await dispatchReply(provider, person.phoneE164, [
+        { kind: "buttons", text: BOT_MESSAGES.menu, buttons: menuFor(person) },
+      ]);
+      return { ok: true, mode: "registered", replies: sent + menuSent };
     }
+    await dispatchReply(provider, person.phoneE164, [{ kind: "text", text: BOT_MESSAGES.askStart }]);
+    return { ok: true, mode: "registered", replies: 1 };
   }
+
+  // opted-in: STOP flips out with one last confirmation; then true silence.
+  if ((ev.body ?? "").trim().toLowerCase() === "stop") {
+    await flipConsent(db, person, "stopped");
+    await dispatchReply(provider, person.phoneE164, [{ kind: "text", text: BOT_MESSAGES.stoppedConfirm }]);
+    return { ok: true, mode: "registered", replies: 1 };
+  }
+
+  const replies = await respondTo(person, ev);
+  const sent = await dispatchReply(provider, person.phoneE164, replies);
   return { ok: true, mode: "registered", replies: sent };
+}
+
+async function flipConsent(
+  db: AppDb,
+  person: { id: string; organizationId: string },
+  status: "opted_in" | "stopped",
+): Promise<void> {
+  await db
+    .update(persons)
+    .set({ consentStatus: status, consentAt: new Date(), updatedAt: new Date() })
+    .where(eq(persons.id, person.id));
+  await auditRepo.log(db, {
+    organizationId: person.organizationId,
+    actorKind: "person",
+    actorPersonId: person.id,
+    action: status === "opted_in" ? "consent.started" : "consent.stopped",
+    entity: "person",
+    entityId: person.id,
+    after: { consentStatus: status },
+  });
+}
+
+async function orgNameFor(db: AppDb, orgId: string): Promise<string | null> {
+  const { orgsRepo } = await import("@/server/repos/base");
+  const org = await orgsRepo.byId(db, orgId);
+  return org?.name ?? null;
 }

@@ -15,7 +15,7 @@ export type WaSection = {
 export type InboundEvent = {
   waMessageId: string;
   fromPhone: string; // E.164
-  type: "text" | "button" | "list_select" | "photo" | "document";
+  type: "text" | "button" | "list_select" | "photo" | "document" | "media";
   body?: string;
   buttonId?: string;
   mediaId?: string;

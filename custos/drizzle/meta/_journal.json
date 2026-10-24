@@ -8,6 +8,13 @@
       "when": 1792856921775,
       "tag": "0000_custos_base",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792860077399,
+      "tag": "0001_loop_and_industry",
+      "breakpoints": true
     }
   ]
 }

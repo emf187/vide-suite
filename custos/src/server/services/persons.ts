@@ -88,7 +88,7 @@ export const personsService = {
     return rows[0] ?? null;
   },
 
-  async setConsent(ctx: Ctx, phone: string, status: "opted_in" | "stopped") {
+  async setConsent(ctx: Ctx, phone: string, status: "opted_in" | "stopped" | "pending") {
     const db = (await getDb()) as AppDb;
     const [row] = await db
       .update(persons)
@@ -98,7 +98,7 @@ export const personsService = {
     if (!row) throw new Error("person_not_found");
     await auditRepo.log(db, {
       organizationId: ctx.orgId,
-      action: status === "opted_in" ? "consent.started" : "consent.stopped",
+      action: status === "opted_in" ? "consent.started" : status === "stopped" ? "consent.stopped" : "consent.reset",
       entity: "person",
       entityId: row.id,
       after: { consentStatus: status },

@@ -28,7 +28,15 @@ export const custosRoleEnum = pgEnum("custos_role", ["owner", "supervisor", "sta
 export const consentStatusEnum = pgEnum("custos_consent_status", ["pending", "opted_in", "stopped"]);
 export const taskTypeEnum = pgEnum("custos_task_type", ["simple_done", "reading", "photo_proof", "checklist", "count"]);
 export const taskStatusEnum = pgEnum("custos_task_status", ["pending", "done", "cant_do", "overdue"]);
-export const evidenceKindEnum = pgEnum("custos_evidence_kind", ["photo", "number", "text"]);
+export const evidenceKindEnum = pgEnum("custos_evidence_kind", [
+  "photo",
+  "video",
+  "audio",
+  "document",
+  "signature",
+  "number",
+  "text",
+]);
 export const problemPriorityEnum = pgEnum("custos_problem_priority", ["low", "normal", "urgent"]);
 export const readingKindEnum = pgEnum("custos_reading_kind", ["temperature", "gas_kg", "run_hours"]);
 
@@ -140,6 +148,10 @@ export const tasks = pgTable("tasks", {
   templateId: uuid("template_id").references(() => taskTemplates.id, { onDelete: "set null" }),
   assigneeId: uuid("assignee_id").references(() => persons.id, { onDelete: "set null" }),
   title: text("title"), // snapshot of the template title at creation time
+  instructions: text("instructions"), // what "done" means, in the supervisor's words
+  /** Ordered proof demands — WhatsApp-capable kinds: ["media"] means any
+   *  photo/video/audio/document; "signature" is a typed full-name sign-off. */
+  evidenceSpec: jsonb("evidence_spec").$type<string[]>().notNull().default([]),
   taskType: taskTypeEnum("task_type").notNull().default("simple_done"),
   dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
   status: taskStatusEnum("status").notNull().default("pending"),

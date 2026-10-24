@@ -4,7 +4,7 @@
  * ORGO — design system V2.
  *
  * Direction: "ops notebook" — Notion-calm paper + charcoal control-room sidebar,
- * Orgo orange as the only accent, Inter for text, JetBrains Mono for
+ * Custos neon blue as the only accent, DM Sans for text, JetBrains Mono for
  * tags/ids/numerals. Hairline separation (no heavy borders), soft elevation,
  * 120–220ms motion. Phone-first: off-canvas sidebar, 44px touch targets,
  * safe-area insets, iOS-zoom-safe inputs.
@@ -33,12 +33,12 @@
   --dim: #6b6862;
   --dim2: #9a958d;
 
-  /* accent (from the Orgo mark) */
-  --accent: #f5871f;
-  --accent-hi: #ff9a3d;
-  --accent-deep: #d96f0d;
-  --accent-ink: #1a1109;   /* text on solid orange */
-  --accent-soft: #fdf0e3;  /* tinted wash */
+  /* accent — Custos neon blue */
+  --accent: #00a3ff;
+  --accent-hi: #4dc4ff;
+  --accent-deep: #0072bf;
+  --accent-ink: #01243d;   /* text on solid neon blue */
+  --accent-soft: #e1f3ff;  /* tinted wash */
 
   /* status + tints (dot-chip system) */
   --ok: #14934a;      --ok-soft: #e9f6ee;
@@ -53,8 +53,8 @@
   --ring: 0 0 0 3px var(--accent-soft);
 
   /* legacy aliases kept alive (VIDE-family code paths) */
-  --grad1: #f5871f;
-  --grad2: #ff9a3d;
+  --grad1: #00a3ff;
+  --grad2: #4dc4ff;
 
   /* motion */
   --ease: cubic-bezier(0.3, 0.8, 0.3, 1);
@@ -71,10 +71,10 @@
   --dim: #a29d95;
   --dim2: #6f6a63;
 
-  --accent: #f5871f;
-  --accent-hi: #ff9a3d;
-  --accent-deep: #d96f0d;
-  --accent-soft: rgba(245, 135, 31, 0.14);
+  --accent: #00a3ff;
+  --accent-hi: #4dc4ff;
+  --accent-deep: #7fd0ff;
+  --accent-soft: rgba(0, 163, 255, 0.16);
 
   --ok: #3ddc84;   --ok-soft: rgba(61, 220, 132, 0.12);
   --warn: #ffd020; --warn-soft: rgba(255, 208, 32, 0.10);
@@ -84,7 +84,7 @@
 
   --shadow-1: 0 1px 3px rgb(0 0 0 / 0.35);
   --shadow-2: 0 6px 18px rgb(0 0 0 / 0.45);
-  --ring: 0 0 0 3px rgba(245, 135, 31, 0.28);
+  --ring: 0 0 0 3px rgba(0, 163, 255, 0.30);
 
   /* dark charcoal rail (the hybrid: dark theme keeps the control-room bar) */
   --chrome: #1d1b18;
@@ -93,10 +93,10 @@
   --chrome-ink: #eceae6;
   --chrome-dim: #a09b93;
   --chrome-hover: rgba(255, 255, 255, 0.05);
-  --chrome-active: rgba(245, 135, 31, 0.14);
+  --chrome-active: rgba(0, 163, 255, 0.16);
 
-  --grad1: #ff3d1a;
-  --grad2: #ff9d1a;
+  --grad1: #0066ff;
+  --grad2: #00c8ff;
 }
 
 * {
@@ -1390,5 +1390,4 @@ button:disabled {
   text-transform: uppercase;
 }
 .sim-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.sim-chips .sim-chip { pointer-events: none; }
 .sim-note { font-size: 10px; color: var(--dim2); letter-spacing: 1px; text-transform: uppercase; }

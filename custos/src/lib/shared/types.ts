@@ -11,6 +11,8 @@ export type ConversationStateName =
   | "awaiting_task_choice"
   | "awaiting_reading"
   | "awaiting_photo"
+  | "awaiting_media"
+  | "awaiting_signature"
   | "awaiting_checklist_step"
   | "awaiting_problem_text"
   | "awaiting_problem_asset"

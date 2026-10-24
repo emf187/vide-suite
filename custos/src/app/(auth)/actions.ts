@@ -13,6 +13,7 @@ const signUpSchema = z.object({
   fullName: z.string().min(2).max(80),
   email: z.string().email(),
   password: z.string().min(8).max(100),
+  industry: z.string().optional(), // whitelist-validated inside createAccount
 });
 const signInSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(100) });
 
@@ -33,6 +34,7 @@ export async function signUpAction(formData: FormData): Promise<never> {
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password"),
+    industry: formData.get("industry"),
   });
   if (!parsed.success) redirect("/signup?error=fields");
 

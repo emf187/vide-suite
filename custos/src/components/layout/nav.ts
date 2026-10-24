@@ -23,7 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/today", label: "Today", crumb: "OBSERVE / TODAY", milestone: null, icon: ICONS.today },
       { href: "/simulator", label: "WhatsApp Simulator", crumb: "SIMULATOR / LIVE CHAT", milestone: null, icon: ICONS.chat },
-      { href: "/people", label: "People", crumb: "WORKSPACE / PEOPLE & CONSENT", milestone: "M2", icon: ICONS.people },
+      { href: "/people", label: "People", crumb: "WORKSPACE / PEOPLE & CONSENT", milestone: null, icon: ICONS.people },
     ],
   },
   {

@@ -3,12 +3,23 @@
  * account code ports 1:1. Lives here (not schema.ts) only to keep the bot's
  * domain tables readable in one block.
  */
-import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, uniqueIndex, index, pgEnum } from "drizzle-orm/pg-core";
+
+/** Workspace vocabulary: any business can run on Custos (clean-SaaS rule). Drives template seeds later. */
+export const orgIndustryEnum = pgEnum("custos_org_industry", [
+  "food_beverage",
+  "field_services",
+  "software_it",
+  "cleaning",
+  "retail",
+  "other",
+]);
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull(),
+  industry: orgIndustryEnum("industry").notNull().default("other"),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

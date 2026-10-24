@@ -10,14 +10,16 @@ export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
   target: "Pick a person or enter a number first.",
-  too_large: "That photo is larger than 10 MB — send a smaller one.",
-  empty: "Type a message or attach a photo, then send.",
+  too_large: "That file is larger than 16 MB — WhatsApp caps media there; send something smaller.",
+  empty: "Type a message, tap a quick word, or attach a file — then send.",
 };
 
 type ButtonsPayload = {
   buttons?: { id: string; label: string }[];
-  sections?: { title: string; rows: { id: string; title: string }[] }[];
+  sections?: { title: string; rows: { id: string; title: string; description?: string }[] }[];
 };
+
+type TargetIdent = { personId?: string; phone?: string };
 
 /** Africa/Lagos = UTC+1, no daylight saving (brief §7). */
 function lagosTime(d: Date): string {
@@ -25,23 +27,40 @@ function lagosTime(d: Date): string {
   return `${t.toISOString().slice(11, 16)} LAGOS`;
 }
 
-function OutboundBits({ row }: { row: MessageRow }) {
+/** Bot-interactive rows become TAPPABLE: every chip is a form submit — zero JS. */
+function OutboundBits({ row, target }: { row: MessageRow; target: TargetIdent }) {
   const payload = row.buttonsPayload as ButtonsPayload | null;
-  if (payload?.buttons?.length) {
+  if (!payload) return null;
+  if (payload.buttons?.length) {
     return (
       <span className="sim-chips">
         {payload.buttons.map((b) => (
-          <span key={b.id} className="sim-chip">{b.label}</span>
+          <form key={b.id} action={sendAsAction}>
+            <input type="hidden" name="personId" value={target.personId ?? ""} />
+            <input type="hidden" name="phone" value={target.phone ?? ""} />
+            <button type="submit" name="tap" value={b.id} className="sim-chip">
+              {b.label}
+            </button>
+          </form>
         ))}
       </span>
     );
   }
-  if (payload?.sections?.length) {
+  if (payload.sections?.length) {
     return (
-      <span style={{ display: "block", marginTop: 6 }}>
+      <span className="sim-chips">
         {payload.sections.map((s) => (
-          <span key={s.title} style={{ display: "block", fontSize: 10.5, color: "var(--dim)", marginTop: 5 }}>
-            {s.title}: {s.rows.map((r) => r.title).join(" · ")}
+          <span key={s.title} style={{ display: "block" }}>
+            <span className="sim-meta">{s.title}</span>
+            {s.rows.map((r) => (
+              <form key={r.id} action={sendAsAction}>
+                <input type="hidden" name="personId" value={target.personId ?? ""} />
+                <input type="hidden" name="phone" value={target.phone ?? ""} />
+                <button type="submit" name="tap" value={r.id} className="sim-chip" title={r.description ?? undefined}>
+                  {r.title}
+                </button>
+              </form>
+            ))}
           </span>
         ))}
       </span>
@@ -50,11 +69,10 @@ function OutboundBits({ row }: { row: MessageRow }) {
   return null;
 }
 
-function Bubble({ row, personName }: { row: MessageRow; personName: string }) {
+function Bubble({ row, personName, target }: { row: MessageRow; personName: string; target: TargetIdent }) {
   const inbound = row.direction === "in";
   const tags = [
-    row.type === "template" ? `TEMPLATE ${row.templateName ?? ""}` : row.type === "interactive" ? "BUTTONS" : row.type === "photo" ? "PHOTO" : null,
-    row.type === "photo" && row.mediaId ? `MEDIA ${row.mediaId.slice(0, 8)}` : null,
+    row.type === "template" ? `TEMPLATE ${row.templateName ?? ""}` : row.type === "interactive" ? "TAP →" : row.type === "media" ? `MEDIA ${row.mediaId?.slice(0, 8) ?? ""}` : null,
     row.status === "failed" ? `FAILED ${row.failureReason ?? ""}` : null,
   ].filter(Boolean) as string[];
 
@@ -67,8 +85,12 @@ function Bubble({ row, personName }: { row: MessageRow; personName: string }) {
           </span>
         ) : null}
         {row.body}
-        <OutboundBits row={row} />
-        {tags.length ? <span className="sim-meta">{tags.join(" · ")} · {lagosTime(row.createdAt)}</span> : <span className="sim-meta">{lagosTime(row.createdAt)}</span>}
+        <OutboundBits row={row} target={target} />
+        {tags.length ? (
+          <span className="sim-meta">{tags.join(" · ")} · {lagosTime(row.createdAt)}</span>
+        ) : (
+          <span className="sim-meta">{lagosTime(row.createdAt)}</span>
+        )}
       </div>
     </div>
   );
@@ -88,16 +110,17 @@ export default async function SimulatorPage({
   const phone = person ? person.phoneE164 : sp.phone ? normalizePhone(sp.phone) : null;
   const rows = person || phone ? await transcriptFor(person, phone!) : [];
   const error = sp.error ? (ERRORS[sp.error] ?? null) : null;
-  const backTo = person ? `p=${encodeURIComponent(person.id)}` : phone ? `phone=${encodeURIComponent(phone)}` : "";
+  const target: TargetIdent = person ? { personId: person.id } : { phone: phone ?? "" };
+  const consentNote =
+    person?.consentStatus === "pending" ? " · PENDING — send START" : person?.consentStatus === "stopped" ? " · STOPPED (silent — reopen from People)" : "";
 
   return (
     <>
       <h1>WhatsApp simulator</h1>
       <p className="lead">
-        The phone-style chat that plays WhatsApp in demo mode. Pick a registered
-        person to speak AS them, or open a bare number to see the bot&apos;s
-        unregistered-number behavior. Every line here is a real message_log row;
-        every reply comes from the same inbound pipeline the M7 webhook will use.
+        The phone-style chat that plays WhatsApp in demo mode. Pick a registered person to speak AS them, or open a
+        bare number to see the unregistered-number behavior. Tappable chips are real choices — the bot receives them
+        as button taps. Every line is a message_log row through the same pipeline the M7 webhook feeds.
       </p>
 
       {error ? (
@@ -116,20 +139,17 @@ export default async function SimulatorPage({
               className={`sim-chip${p.id === person?.id ? " active" : ""}`}
             >
               {p.name} · {p.role}
+              {p.consentStatus === "pending" ? " ·⏳" : ""}
             </Link>
           ))}
           {people.length === 0 ? (
             <span style={{ fontSize: 11, color: "var(--dim)" }}>
-              No people registered yet — add them under People (M2), or tap a bare number below to see the unregistered path.
+              No people yet — add them under People, or tap a bare number below to see the unregistered path.
             </span>
           ) : null}
         </div>
         <form method="get" action="/simulator" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input
-            name="phone"
-            placeholder="Bare number, e.g. +234803…"
-            style={{ maxWidth: 240 }}
-          />
+          <input name="phone" placeholder="Bare number, e.g. +234803…" style={{ maxWidth: 240 }} />
           <button type="submit" className="secondary">OPEN CHAT</button>
         </form>
       </div>
@@ -140,7 +160,7 @@ export default async function SimulatorPage({
             {rows.length === 0 ? (
               <span className="sim-note">No messages yet — send the first one below.</span>
             ) : (
-              rows.map((row) => <Bubble key={row.id} row={row} personName={person?.name ?? phone ?? "?"} />)
+              rows.map((row) => <Bubble key={row.id} row={row} personName={person?.name ?? phone ?? "?"} target={target} />)
             )}
           </div>
 
@@ -151,7 +171,7 @@ export default async function SimulatorPage({
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <input
                   name="body"
-                  placeholder={person ? `Type as ${person.name}…` : `Type as ${phone}…`}
+                  placeholder={person ? `Type as ${person.name}${consentNote}…` : `Type as ${phone}…`}
                   style={{ flex: 1 }}
                 />
                 <button type="submit" className="auth-btn-primary">SEND</button>
@@ -163,13 +183,22 @@ export default async function SimulatorPage({
                   ["help", "HELP"],
                   ["tasks", "TASKS"],
                   ["start", "START"],
+                  ["stop", "STOP"],
                   ["wahala", "WAHALA"],
                 ].map(([value, label]) => (
                   <button key={value} type="submit" name="quick" value={value} className="sim-chip">
                     {label}
                   </button>
                 ))}
-                <input type="file" name="photo" accept="image/*" style={{ fontSize: 10, maxWidth: 220 }} />
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  type="file"
+                  name="photo"
+                  accept="image/*,video/*,audio/*,.pdf"
+                  style={{ fontSize: 10 }}
+                />
+                <span className="sim-note">PHOTO · VIDEO · VOICE · PDF · ≤ 16 MB</span>
               </div>
             </form>
           </div>
@@ -186,11 +215,11 @@ export default async function SimulatorPage({
       <div className="card">
         <div className="eyebrow">HOW THIS MODE WORKS</div>
         <p style={{ fontSize: 12, lineHeight: 1.7, color: "var(--dim)", margin: 0 }}>
-          The bot logic never knows which messenger it is talking to. Today the
-          provider is the simulator (writes straight to message_log); on M7 the
-          same pipeline is fed by Meta&apos;s signed webhook. Unregistered
-          numbers get one polite reply, STOPped numbers get silence, and every
-          state transition lands in the audit trail.
+          The bot logic never knows which messenger it is talking to. Today the provider is the simulator (writes
+          straight to message_log); on M7 the same pipeline is fed by Meta&apos;s signed webhook. Unregistered numbers
+          get one polite reply, pending numbers wait for START, STOP gets one confirmation and then true silence, and
+          every state transition lands in the audit trail. Media bytes are stored outside the web root and survive
+          restarts in this mode.
         </p>
       </div>
     </>

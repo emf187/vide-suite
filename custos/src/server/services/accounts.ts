@@ -7,8 +7,9 @@ import { auditRepo } from "@/server/repos/audit";
 import { membershipsRepo, orgsRepo, usersRepo } from "@/server/repos/base";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { slugify } from "@/lib/shared/slugify";
+import { isIndustry, type Industry } from "@/lib/industries";
 
-export type CreateAccountInput = { orgName: string; fullName: string; email: string; password: string };
+export type CreateAccountInput = { orgName: string; fullName: string; email: string; password: string; industry?: string };
 export type CreateAccountResult = { kind: "created"; user: User; organization: Organization } | { kind: "email_conflict" };
 
 /**
@@ -19,13 +20,15 @@ export type CreateAccountResult = { kind: "created"; user: User; organization: O
 export async function createAccount(db: AppDb, input: CreateAccountInput): Promise<CreateAccountResult> {
   const passwordHash = await hashPassword(input.password);
   const base = slugify(input.orgName);
+  // Clean-SaaS signup: any trade works; unknown values land on "other".
+  const industry: Industry = isIndustry(input.industry ?? "") ? (input.industry as Industry) : "other";
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const slug = attempt === 0 ? base : `${base}-${randomUUID().slice(0, 4)}`;
     try {
       return await db.transaction(async (tx) => {
         const user = await usersRepo.create(tx, { name: input.fullName, email: input.email, passwordHash });
-        const organization = await orgsRepo.create(tx, { name: input.orgName, slug });
+        const organization = await orgsRepo.create(tx, { name: input.orgName, slug, industry });
         await membershipsRepo.create(tx, { organizationId: organization.id, userId: user.id, role: "owner" });
         await auditRepo.log(tx, {
           organizationId: organization.id,
@@ -33,7 +36,7 @@ export async function createAccount(db: AppDb, input: CreateAccountInput): Promi
           action: "org.created",
           entity: "organization",
           entityId: organization.id,
-          after: { name: organization.name, slug: organization.slug },
+          after: { name: organization.name, slug: organization.slug, industry },
         });
         return { kind: "created" as const, user, organization };
       });

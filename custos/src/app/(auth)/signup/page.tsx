@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCtx } from "@/server/ctx";
 import { Logo } from "@/components/layout/Logo";
+import { INDUSTRIES } from "@/lib/industries";
 import { signUpAction } from "../actions";
 
 export const metadata = { title: "Create account" };
@@ -59,6 +60,18 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
               PASSWORD (MIN 8)
             </label>
             <input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+          </div>
+          <div className="auth-field">
+            <label className="field-label" htmlFor="industry">
+              WHAT YOU RUN
+            </label>
+            <select id="industry" name="industry" defaultValue="other" className="auth-input">
+              {INDUSTRIES.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.label}
+                </option>
+              ))}
+            </select>
           </div>
           <button type="submit">CREATE ACCOUNT</button>
         </form>
