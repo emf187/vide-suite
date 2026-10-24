@@ -1,25 +1,12 @@
 import { redirect } from "next/navigation";
+import { AppShell } from "@/components/layout/AppShell";
 import { getCtx } from "@/server/ctx";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { TopBar } from "@/components/layout/TopBar";
 
-/** Authenticated area for Custos: ctx from the session, shell around children. */
+/** Authenticated area: builds the Ctx (org + role from the verified session) and renders the shell. */
 export default async function AppGroupLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getCtx();
-  if (!ctx) redirect("/login");
-  return (
-    <div className="shell">
-      <Sidebar orgName={ctx.orgName} userName={ctx.name} role={ctx.role} />
-      <div className="main">
-        <TopBar orgName={ctx.orgName} />
-        <div className="content" id="main-content">
-          {children}
-        </div>
-        <footer className="footerbar">
-          <span>CUSTOS · TASK GUARDIAN</span>
-          <span>{ctx.orgName.toUpperCase()} · ROLE {ctx.role.toUpperCase()}</span>
-        </footer>
-      </div>
-    </div>
-  );
+  if (!ctx) {
+    redirect("/login");
+  }
+  return <AppShell ctx={ctx}>{children}</AppShell>;
 }

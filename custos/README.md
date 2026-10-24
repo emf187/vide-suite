@@ -16,8 +16,8 @@ audit, no client JS on surfaces that don't need it.
 | Milestone | What | Status |
 |---|---|---|
 | M0 | Security: signup can never overwrite an account; expiring single-use reset tokens | **built in from day one** (tests enforce it) |
-| M1 | Data model + messaging adapter + simulator screen | schema `0010`-era live; adapter/simulator next |
-| M2 | Registration (START/STOP), unregistered numbers, role menus | — |
+| M1 | Data model + messaging adapter + simulator screen | **done** — bot tables live; `MessagingProvider` adapter (simulator + M7 stub); one inbound pipeline with wa-id dedupe; one messages file; media store outside the web root; phone chat screen, zero client JS |
+| M2 | Registration (START/STOP), unregistered numbers, role menus | consent primitives + rules already tested; screens next |
 | M3 | Task types end-to-end with evidence + dashboard proof | — |
 | M4 | Scheduler: morning summary, reminders, escalation (demo-speed switch) | — |
 | M5 | Problems → jobs (technician close with photo + cost); gas count/refill/burn-rate | — |

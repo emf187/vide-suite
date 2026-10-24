@@ -14,7 +14,7 @@ export default async function TodayPage() {
 
   const milestones: { id: string; title: string; note: string; done: boolean }[] = [
     { id: "M0", title: "Security", note: "Signup can never overwrite; resets are expiring tokens. Built in from day one.", done: true },
-    { id: "M1", title: "Data model + adapter", note: "Bot tables + the messaging adapter + the simulator screen.", done: false },
+    { id: "M1", title: "Data model + adapter", note: "Bot tables, the messaging adapter, the inbound pipeline and the simulator live.", done: true },
     { id: "M2", title: "Registration & menus", note: "START / STOP, unregistered numbers, role-based menus.", done: false },
     { id: "M3", title: "Task flows", note: "All four task types end-to-end with proof on the dashboard.", done: false },
     { id: "M4", title: "Scheduler", note: "Morning summary, reminders, escalation (demo-speed switch).", done: false },

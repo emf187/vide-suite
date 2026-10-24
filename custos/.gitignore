@@ -39,3 +39,6 @@ Thumbs.db
 
 # persistent local PGlite data dir (dev)
 .pglite/
+
+# WhatsApp media bytes live OUTSIDE the web root (brief §10)
+.media/

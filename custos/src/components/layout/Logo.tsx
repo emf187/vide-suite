@@ -1,25 +1,62 @@
-const MARK = "O";
-
 /**
- * Custos brand: typography-only (no bitmap carries the name — lesson learned
- * from the Planner's rebrand). The mark is the first letter in the accent
- * chip; the wordmark can evolve in one place.
+ * Custos brand: TEXT-ONLY mark (lesson carried from the Planner's rebrand —
+ * no bitmap ever carries the name). The "C" chip renders from tokens, so a
+ * future rename touches exactly one component.
  */
+
+/** The mark alone — used in the sidebar brand block and auth surfaces. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={`auth-mark ${className ?? ""}`} style={{ display: "inline-flex", width: 28, height: 28, alignItems: "center", justifyContent: "center", fontSize: 13 }}>
-      {MARK}
+    <span
+      className={className}
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        width: 26,
+        height: 26,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 8,
+        background: "var(--accent)",
+        color: "var(--accent-ink)",
+        fontFamily: "var(--font-mono)",
+        fontWeight: 700,
+        fontSize: 14,
+        flexShrink: 0,
+      }}
+    >
+      C
     </span>
   );
 }
 
-export function LogoBlock({ sub = "TASK GUARDIAN" }: { sub?: string }) {
+/** Full lockup (mark + wordmark + role line) — auth / about surfaces. */
+export function FullLogo({ width = 200 }: { width?: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <Logo />
-      <div style={{ lineHeight: 1.2 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 1.5 }}>CUSTOS</div>
-        <div style={{ fontSize: 8.5, letterSpacing: 2, color: "var(--dim)", textTransform: "uppercase" }}>{sub}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        aria-hidden="true"
+        style={{
+          display: "inline-flex",
+          width: Math.round(width * 0.26),
+          height: Math.round(width * 0.26),
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: Math.round(width * 0.09),
+          background: "var(--accent)",
+          color: "var(--accent-ink)",
+          fontFamily: "var(--font-mono)",
+          fontWeight: 700,
+          fontSize: Math.round(width * 0.14),
+        }}
+      >
+        C
+      </div>
+      <div style={{ lineHeight: 1.25 }}>
+        <div style={{ fontWeight: 800, fontSize: Math.round(width * 0.12), letterSpacing: 2 }}>CUSTOS</div>
+        <div style={{ fontSize: Math.max(8, Math.round(width * 0.055)), letterSpacing: 2, color: "var(--dim)" }}>
+          TASK GUARDIAN
+        </div>
       </div>
     </div>
   );

@@ -67,6 +67,10 @@ export const orgsRepo = {
     const rows = await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1);
     return rows[0] ?? null;
   },
+  async byId(db: AppDb, id: string): Promise<Organization | null> {
+    const rows = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    return rows[0] ?? null;
+  },
 };
 
 export const membershipsRepo = {

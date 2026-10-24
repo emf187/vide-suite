@@ -21,6 +21,8 @@ export type Ctx = {
   orgName: string;
   role: Role;
   roles: Role[];
+  /** Display + scheduler timezone (brief §7). Fixed Africa/Lagos for the demo. */
+  timezone: string;
 };
 
 export const getCtx = cache(async (): Promise<Ctx | null> => {
@@ -64,5 +66,6 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     orgName: m.orgName,
     role,
     roles: [role],
+    timezone: "Africa/Lagos",
   };
 });

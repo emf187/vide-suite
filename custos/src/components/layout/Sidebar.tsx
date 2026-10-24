@@ -1,36 +1,84 @@
-import { iconFor, NAV_SECTIONS } from "./nav";
+"use client";
 
-type SidebarProps = { orgName: string; userName: string; role: string };
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { Logo } from "./Logo";
+import { NAV_SECTIONS } from "./nav";
 
-/** Server-rendered brand + nav shell (no client JS — Custos stays JS-free by default). */
-export function Sidebar({}: SidebarProps) {
-  return (
-    <aside className="sidebar">
+type SidebarProps = {
+  orgName: string;
+  userName: string;
+  statusLabel: string;
+  live: boolean;
+};
+
+/**
+ * VIDE-style sidebar ported 1:1 from the sibling Planner (230px rail, brand
+ * block, eyebrow sections, accent active bar; off-canvas drawer on mobile).
+ * The one client island of the shell — same discipline as ORGO.
+ */
+export function Sidebar({ orgName, userName, statusLabel, live }: SidebarProps) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  const nav = (
+    <>
       <div className="brand">
-        <span className="auth-mark logo" style={{ display: "inline-flex", width: 30, height: 30, alignItems: "center", justifyContent: "center", fontSize: 14 }}>
-          O
-        </span>
+        <Logo className="logo" />
         <div>
           <div className="name">CUSTOS</div>
           <div className="sub">TASK GUARDIAN</div>
         </div>
       </div>
+
       {NAV_SECTIONS.map((section) => (
         <div key={section.label}>
           <div className="nav-section">{section.label}</div>
           <nav className="nav">
             {section.items.map((item) => (
-              <a key={item.href} href={item.href}>
-                <span className="nav-icon" dangerouslySetInnerHTML={{ __html: iconFor[item.icon] ?? "" }} />
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "active" : undefined}
+              >
+                <span className="nav-icon" style={{ flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: item.icon }} />
                 <span className="nav-label">{item.label}</span>
-              </a>
+                {item.milestone ? <span style={{ opacity: 0.55 }}> ·</span> : null}
+              </Link>
             ))}
           </nav>
         </div>
       ))}
+
       <div className="sidebar-footer">
-        <div style={{ fontSize: 9, color: "var(--dim2)", letterSpacing: 1 }}> messaging: SIMULATOR (M1)</div>
+        <div style={{ marginBottom: 6 }}>
+          <span className={`status-dot${live ? " live" : ""}`}></span>
+          {statusLabel}
+        </div>
+        <div style={{ color: "var(--dim)", marginBottom: 2 }}>{orgName}</div>
+        <div>{userName}</div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {open ? <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" /> : null}
+      <aside className={`sidebar${open ? " nav-open" : ""}`} aria-label="Primary">
+        {nav}
+      </aside>
+      <button
+        className="nav-toggle secondary"
+        style={{ position: "fixed", right: 14, bottom: 14, zIndex: 60, padding: "11px 16px", borderRadius: 12 }}
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Toggle navigation"
+        aria-expanded={open}
+      >
+        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>{open ? "✕" : "☰"}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.2 }}>{open ? "CLOSE" : "MENU"}</span>
+      </button>
+    </>
   );
 }

@@ -1334,3 +1334,61 @@ button:disabled {
   background: var(--accent-soft);
 }
 [data-theme="dark"] .dayrow-actions .row-btn:hover { color: var(--accent-hi); }
+
+/* ---------------------------------------------------------------- */
+/* M1 simulator: phone-style chat (server-rendered, zero client JS)  */
+/* ---------------------------------------------------------------- */
+.sim-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--dim);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-decoration: none;
+}
+.sim-chip:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent-deep); }
+.sim-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
+
+.sim-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 64vh;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.sim-row { display: flex; }
+.sim-row.in { justify-content: flex-end; }
+.sim-bubble {
+  max-width: 78%;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  border: 1px solid var(--line);
+  background: var(--chrome-2);
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sim-row.in .sim-bubble { border-color: var(--accent); background: var(--accent-soft); }
+.sim-meta {
+  display: block;
+  margin-top: 5px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--dim2);
+  text-transform: uppercase;
+}
+.sim-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.sim-chips .sim-chip { pointer-events: none; }
+.sim-note { font-size: 10px; color: var(--dim2); letter-spacing: 1px; text-transform: uppercase; }

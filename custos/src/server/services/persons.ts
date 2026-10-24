@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { AppDb } from "@/server/db/client";
 import { getDb } from "@/server/db/client";
 import { persons } from "@/server/db/schema";
@@ -68,6 +68,24 @@ export const personsService = {
     const alive = rows[0];
     if (!alive || alive.deactivatedAt) return null;
     return alive;
+  },
+
+  /** Org-agnostic lookup for the TRANSPORT layer only (phone → any registered person). */
+  async findByPhone(phone: string) {
+    const db = (await getDb()) as AppDb;
+    const rows = await db
+      .select()
+      .from(persons)
+      .where(eq(persons.phoneE164, normalizePhone(phone)))
+      .orderBy(desc(persons.updatedAt))
+      .limit(1);
+    return rows[0] ?? null;
+  },
+
+  async byId(id: string) {
+    const db = (await getDb()) as AppDb;
+    const rows = await db.select().from(persons).where(eq(persons.id, id)).limit(1);
+    return rows[0] ?? null;
   },
 
   async setConsent(ctx: Ctx, phone: string, status: "opted_in" | "stopped") {

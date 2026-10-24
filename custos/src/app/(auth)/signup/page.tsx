@@ -1,50 +1,75 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCtx } from "@/server/ctx";
-import { LogoBlock } from "@/components/layout/Logo";
+import { Logo } from "@/components/layout/Logo";
 import { signUpAction } from "../actions";
 
 export const metadata = { title: "Create account" };
 
 const ERRORS: Record<string, string> = {
-  fields: "Check the fields — everything is required, password at least 8 characters.",
-  email_taken: "That email already has an account — sign in instead. For safety, an existing account is never overwritten or given a new password.",
+  fields: "Check the fields — business name, your name, email and a password of 8+ characters.",
+  email_taken:
+    "That email already has an account — sign in instead. For safety an existing account is never overwritten or given a new password.",
 };
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const liveCtx = await getCtx();
-  if (liveCtx) redirect("/today");
   const params = await searchParams;
   const error = params.error ? (ERRORS[params.error] ?? "Sign-up failed.") : null;
+  // DB-verified "already signed in?" — same rationale as the login page.
+  const liveCtx = await getCtx();
+  if (liveCtx) redirect("/today");
 
   return (
-    <div className="auth-mesh min-h-screen flex items-center justify-center p-4 md:p-8">
-      <div className="auth-glass w-full max-w-md rounded-2xl p-8 relative z-10">
-        <div className="flex items-center gap-3 mb-2">
-          <LogoBlock />
+    <div className="auth-shell">
+      <div className="auth-card card">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <Logo className="logo" />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>CUSTOS</div>
+            <div style={{ fontSize: 9, color: "var(--dim)", letterSpacing: 1 }}>TASK GUARDIAN</div>
+          </div>
         </div>
 
-        <p className="text-[12px] text-dim mt-3 mb-6 leading-relaxed">
-          Create your workspace — this becomes your business&apos; guardian.
-        </p>
-
-        <form action={signUpAction} className="space-y-4">
-          {error ? <p role="alert" className="auth-banner">{error}</p> : null}
-          <label htmlFor="orgName" className="auth-label">BUSINESS NAME</label>
-          <input id="orgName" name="orgName" required minLength={2} className="auth-input" placeholder="Demo Kitchen Ltd" />
-          <label htmlFor="fullName" className="auth-label">YOUR NAME</label>
-          <input id="fullName" name="fullName" required minLength={2} className="auth-input" />
-          <label htmlFor="email" className="auth-label">EMAIL</label>
-          <input id="email" name="email" type="email" autoComplete="email" required className="auth-input" />
-          <label htmlFor="password" className="auth-label">PASSWORD (8+ CHARACTERS)</label>
-          <input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} className="auth-input" />
-          <button type="submit" className="auth-btn-primary w-full py-3.5 rounded-xl font-bold text-sm tracking-widest uppercase shadow-sm">
-            CREATE ACCOUNT
-          </button>
+        <form action={signUpAction}>
+          {error ? (
+            <p className="error-text" role="alert" style={{ marginBottom: 12 }}>
+              {error}
+            </p>
+          ) : null}
+          <div className="auth-field">
+            <label className="field-label" htmlFor="orgName">
+              BUSINESS NAME
+            </label>
+            <input id="orgName" name="orgName" type="text" required minLength={2} maxLength={80} placeholder="e.g. Demo Kitchen Ltd" />
+          </div>
+          <div className="auth-field">
+            <label className="field-label" htmlFor="fullName">
+              YOUR NAME
+            </label>
+            <input id="fullName" name="fullName" type="text" required minLength={2} maxLength={80} autoComplete="name" />
+          </div>
+          <div className="auth-field">
+            <label className="field-label" htmlFor="email">
+              WORK EMAIL
+            </label>
+            <input id="email" name="email" type="email" required autoComplete="email" />
+          </div>
+          <div className="auth-field">
+            <label className="field-label" htmlFor="password">
+              PASSWORD (MIN 8)
+            </label>
+            <input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+          </div>
+          <button type="submit">CREATE ACCOUNT</button>
         </form>
 
-        <p className="text-[11px] text-dim2 text-center mt-6">
-          Already have an account? <Link href="/login" style={{ color: "var(--accent)" }}>Sign in</Link>
+        <div className="auth-footlinks">
+          <span>ALREADY ONBOARD?</span>
+          <Link href="/login">SIGN IN →</Link>
+        </div>
+        <p className="demo-hint">
+          You become the OWNER. Roles: owner · supervisor · staff · technician
+          (outside vendor). People opt in from WhatsApp with START.
         </p>
       </div>
     </div>

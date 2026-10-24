@@ -254,4 +254,8 @@ export const digests = pgTable("digests", {
  * password resets are expiring single-use tokens).
  * ----------------------------------------------------------------------- */
 export type { Organization, User, Membership } from "./base";
+export type Person = typeof persons.$inferSelect;
+export type TaskTemplate = typeof taskTemplates.$inferSelect;
+export type Task = typeof tasks.$inferSelect;
+export type MessageRow = typeof messageLog.$inferSelect;
 export { organizations, users, memberships, userAuthIdentities, passwordResetTokens } from "./base";

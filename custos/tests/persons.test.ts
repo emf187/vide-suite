@@ -16,7 +16,7 @@ beforeEach(async () => {
   const org = await orgsRepo.create(db, { name: "Demo Kitchen", slug: `demo-kitchen-${testId()}` });
   const owner = await usersRepo.create(db, { name: "Ada Owner", email: `o-${testId()}@x.io`, passwordHash: "x" });
   await membershipsRepo.create(db, { organizationId: org.id, userId: owner.id, role: "owner" });
-  ctx = { userId: owner.id, email: owner.email, name: owner.name, orgId: org.id, orgSlug: org.slug, orgName: org.name, role: "owner", roles: ["owner"] };
+  ctx = { userId: owner.id, email: owner.email, name: owner.name, orgId: org.id, orgSlug: org.slug, orgName: org.name, role: "owner", roles: ["owner"], timezone: "Africa/Lagos" };
 
   const org2 = await orgsRepo.create(db, { name: "Rival Kitchen", slug: `rival-${testId()}` });
   const outsider = await usersRepo.create(db, { name: "Rival Owner", email: `r-${testId()}@x.io`, passwordHash: "x" });
