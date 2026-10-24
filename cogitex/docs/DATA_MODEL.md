@@ -376,6 +376,19 @@ model varchar, gateway_ref text, token_usage jsonb, created_at`.
 output_summary jsonb, executed bool (write tools pre-execution are logged as proposed), result ('ok'|'denied'|'confirmed_pending'|'executed'),
 error, at`. Security property tested in CI: the model-supplied payload never overrides `Ctx`.
 
+**Sprint item 5 addition — the `machine_history` read tool** (~thread through items 1–4):
+"show UKRs' chiller's last service and spend" routes deterministically to `machine_history`,
+even from a partial NAME ("UKRs'" tokens plural/possessive-stripped against machine-name
+tokens; two passes: ≥2-token name-prefix window, then a single DISTINCTIVE token that
+identifies exactly one machine — generic words (service/maintenance/chiller/pump…) never
+count as machine references alone). The tool reads `maintenanceHistoryService.forMachine`
+(item 1) + `notesService.list` (item 2) and answers with: last service date + card number
+(or an honest "no concluded service"), lifetime spend verbatim in kobo (labor/parts/manual
+split), the 365-day window figure, biggest card, top manual log lines and the machine's
+notes count + latest title. Reads are org-scoped (`No machine matching …` outside), every
+number appears verbatim in the tool payload (the phrasing LLM can only restate), and the
+run lands in `agent_tool_logs` with machine + wo citations. Write/intent behavior unchanged.
+
 ### 3.11 Machine profile v2 — maintenance history & expenditure log (migration 0009, sprint item 1)
 
 **machine_expenses** (org, append-friendly: soft-delete + re-add, never edited)

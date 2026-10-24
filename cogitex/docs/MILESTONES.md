@@ -965,4 +965,46 @@ passing with the grid tests), tsc clean.
 **Next:** item 5 - thread the agent through all of it ("show UKR chiller's
 last service and spend" - the pitch moment).
 
+## UPGRADE SPRINT item 5 - the agent threaded through all of it (`machine_history`)
+
+**Commit:** `agent machine_history tool - "show UKR chiller's last service and spend" answered from item 1-2 data (kobo-verbatim, cited, tenancy-safe)`
+
+- **The pitch phrase works, keyless:** the deterministic matcher now resolves
+  the machine from a partial NAME - "show UKRs' chiller's last service and
+  spend" matches "UKR Chiller 01" with no tag and no full name (tokens are
+  possessive/plural-stripped, then two passes: a >=2-token name-prefix
+  window and a single DISTINCTIVE token that points at exactly one machine;
+  generic unit words like chiller/pump never count alone, and fault wording
+  is excluded so "fault history" stays with the fault tools).
+- **New read tool `machine_history`** (sprint items 1+2 threaded): answers
+  with the last SERVICE (date + card number, straight from the item-1
+  summary) - or an honest "No concluded service on record yet" - lifetime
+  spend in verbatim kobo with the labor/parts/manual split, the 365-day
+  window figure, biggest card, the top manual log lines and the machine's
+  notes count + latest title (item 2). Citations: machine + last-service
+  card; logged as a read in agent_tool_logs; tenancy holds (foreign org reads
+  "No machine matching ...", and even a contains-match partial tag stays
+  inside this org). The tool also accepts a partial name directly, so an
+  LLM-supplied "ukr chiller" still resolves - and never outside this org.
+- **Routing regression-protected:** "cost last 30 days" (no machine) stays
+  cost_summary; "open faults" stays faults; "create a work order for UKR-CH-01
+  replace bearing" still proposes the write; two machines sharing "chiller"
+  in their names never collide on the noun. Intent-L example list extended
+  with machine_history so LLM-phrased variants land on the same honest tool.
+
+**Tests/verification:** tsc clean; **186 passing (from 177; 9 new)** - the
+pitch phrase resolving "UKRs' chiller" with zero LLM, the distinctive-token
+"what is the UKR's history?" variant, non-misrouting regressions
+(cost/faults/create/fault-history), the full chat flow seeding a concluded
+card (labor 120x2500/60 = 500,000 kobo + parts 150,000 + manual 130,000 =
+780,000 lifetime; 365d = 690,000 with the 400-day-old contract excluded),
+citation kinds, agent_tool_logs read entry with sanitized args, notes
+threading ("1 note on file - latest: 'Freon leak history'"), the
+never-serviced honest answer, direct-tool partial-name resolution, and
+cross-org invisibility.
+
+**Sprint complete:** items 1 (history + expenditure log) - 2 (notes/imports)
+- 3 (grids) - 4 (demo purchase) - 5 (agent threading) all shipped and green.
+Once the final push lands, the suite mirror carries the whole sprint.
+
 

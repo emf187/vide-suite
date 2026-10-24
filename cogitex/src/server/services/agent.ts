@@ -16,6 +16,8 @@ import { auditRepo } from "@/server/repos/audit";
 import { faultsService, faultsWriteService } from "@/server/services/faults";
 import { workOrderWriteService, type WoStatus } from "@/server/services/work-orders";
 import { repairRequestsWriteService } from "@/server/services/repair-requests";
+import { maintenanceHistoryService } from "@/server/services/machine-history";
+import { notesService } from "@/server/services/machine-notes";
 import { computeMetrics, validateNarrative, type FaultCore, type LaborCore, type MachineCore, type PartsCore, type WorkOrderCore } from "@/server/metrics/reports";
 
 /**
@@ -43,7 +45,7 @@ export type AgentReply = {
 type PhraseContext = AgentHistory;
 
 type ToolName =
-  | "machine_brief" | "fleet_summary" | "open_faults" | "list_open_work_orders" | "stock_lookup"
+  | "machine_brief" | "machine_history" | "fleet_summary" | "open_faults" | "list_open_work_orders" | "stock_lookup"
   | "cost_summary" | "help"
   | "create_work_order" | "acknowledge_fault" | "convert_fault_to_work_order"
   | "compile_repair_request";
@@ -57,6 +59,7 @@ type ToolSpec = {
 
 const TOOL_SPECS: ToolSpec[] = [
   { name: "machine_brief", write: false, ability: null, describe: () => "look up a machine" },
+  { name: "machine_history", write: false, ability: null, describe: (a) => `maintenance history & spend for ${String(a.tag)}` },
   { name: "fleet_summary", write: false, ability: null, describe: () => "summarize the machine fleet" },
   { name: "open_faults", write: false, ability: null, describe: () => "list open faults" },
   { name: "list_open_work_orders", write: false, ability: null, describe: () => "list open work orders" },
@@ -103,6 +106,7 @@ async function interpretWithLlm(
     'Examples: {"tool":"machine_brief","args":{"tag":"PUMP-3"}} · {"tool":"open_faults","args":{"severity":"critical"}} ·',
     '{"tool":"list_open_work_orders","args":{}} · {"tool":"stock_lookup","args":{"query":"BRG-6204"}} ·',
     '{"tool":"fleet_summary","args":{}} · {"tool":"cost_summary","args":{"days":30}} · {"tool":"help","args":{}} ·',
+    '{"tool":"machine_history","args":{"tag":"PUMP-3"}} — last service history + lifetime/365-day spend for ONE machine ·',
     '{"tool":"create_work_order","args":{"machineTag":"PUMP-3","title":"replace DE bearing","type":"corrective","priority":"high"}} ·',
     '{"tool":"acknowledge_fault","args":{"latest":true}} · {"tool":"convert_fault_to_work_order","args":{"latest":true}} ·',
     '{"tool":"compile_repair_request","args":{"tag":"PUMP-3"}} · {"tool":"none"} — for anything else.',
@@ -263,10 +267,13 @@ export function matchIntentLocal(message: string, machineList: { tag: string; na
   const msg = message.toLowerCase();
 
   // machine reference (tag or name, case-insensitive whole-ish token)
-  const hit = machineList.find(
+  let hit = machineList.find(
     (m) => new RegExp(`\\b${m.tag.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(msg)
       || (m.name.length > 3 && msg.includes(m.name.toLowerCase())),
   );
+  // partial-name resolver: "show UKR chiller's last service…" for "UKR Chiller 01" —
+  // ≥2 name tokens (possessive/plural-stripped) prefix-matched against message tokens.
+  if (!hit) hit = resolvePartialMachine(message, machineList) ?? undefined;
 
   // listing intents first — so "open work orders" is never read as a create intent
   if (/\b(work orders|backlog|todo|to-do|queue)\b|\bopen work orders\b|\bwhat('s| is) open\b/.test(msg)) {
@@ -304,6 +311,17 @@ export function matchIntentLocal(message: string, machineList: { tag: string; na
   }
   // faults BEFORE the stock rule — "how many faults do we have?" must not read as
   // "do we have" = stock. Plain "do we have spare bearings" still hits stock below.
+  // history intent (before generic cost/fault rules): an EXISTING machine plus
+  // service-history or spend wording — "show {UKR chiller}'s last service and spend".
+  // The create/ack rules above own explicit action verbs, so "create a service work
+  // order for PUMP-3" never routes here.
+  if (
+    hit &&
+    !/\bfault/.test(msg) &&
+    /\bhistory\b|\blast service\b|\bservice(?:d)? history\b|\blast (?:serviced|maintenance|maintained)\b|\bservice record\b|\bspending?\b|\bspent\b|\bcost\b|\bhow much\b/.test(msg)
+  ) {
+    return { tool: "machine_history", args: { tag: hit.tag }, via: "local" };
+  }
   if (/\b(faults?|alarms?)\b/.test(msg)) {
     const severity = /\bcritical|\bdown\b|\bemergency\b/.test(msg) ? "critical" : /\bwarning/.test(msg) ? "warning" : /\bwatch/.test(msg) ? "watch" : null;
     return { tool: "open_faults", args: { severity }, via: "local" };
@@ -356,6 +374,58 @@ function extractStockQuery(message: string): string | null {
   return caps?.[0] ?? null;
 }
 
+/** words that are never a distinctive machine reference on their own */
+const NOT_DISTINCTIVE = new Set([
+  "service", "serviced", "maintenance", "maintained", "history", "spend", "spending", "spent",
+  "fault", "faults", "repair", "work", "order", "stock", "spare", "part", "cost", "job",
+  "last", "first", "next", "this", "that", "today", "yesterday", "week", "month", "year",
+  "pump", "motor", "generator", "compressor", "conveyor", "hvac", "chiller", "boiler",
+  "cnc", "fan", "mixer", "other", "plant",
+]);
+
+/** lowercase token stream; apostrophes dropped; "ukrs"→"ukr", "fans"→"fan" (≥4 chars), "chiller's"→"chiller" */
+function tokensOf(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => (t.length >= 4 && t.endsWith("s") ? t.slice(0, -1) : t));
+}
+
+/**
+ * Partial-name machine resolver (deterministic). Example: the pitch question
+ * "show UKRs' chiller's last service and spend" must resolve "UKR Chiller 01"
+ * even though no full tag or complete name appears:
+ *  pass 1 — a consecutive message window equal to a ≥2-tokens PREFIX of the
+ *           machine's name tokens ("ukr chiller…");
+ *  pass 2 — a single DISTINCTIVE name token (≥4 chars, not a generic word)
+ *           that identifies exactly ONE machine in the register ("UKRs'").
+ */
+function resolvePartialMachine(message: string, machineList: { tag: string; name: string }[]) {
+  const msgTokens = tokensOf(message);
+  if (msgTokens.length === 0) return null;
+  for (const m of machineList) {
+    const nameTokens = tokensOf(m.name);
+    for (let w = Math.min(nameTokens.length, 4); w >= 2; w--) {
+      const prefix = nameTokens.slice(0, w).join(" ");
+      for (let i = 0; i + w <= msgTokens.length; i++) {
+        if (msgTokens.slice(i, i + w).join(" ") === prefix) return m;
+      }
+    }
+  }
+  for (const m of machineList) {
+    const nameTokens = tokensOf(m.name).filter((t) => t.length >= 3 && !NOT_DISTINCTIVE.has(t));
+    if (nameTokens.length === 0) continue;
+    if (!msgTokens.some((t) => t.length >= 3 && !NOT_DISTINCTIVE.has(t) && nameTokens.includes(t))) continue;
+    const distinct = nameTokens.some((t) => machineList.some((o) => o !== m && tokensOf(o.name).includes(t)));
+    if (distinct) continue; // ambiguous across the register — the noun rule handles category words
+    return m;
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* tools                                                               */
 /* ------------------------------------------------------------------ */
@@ -392,6 +462,81 @@ export const agentTools = {
         tag: m.tag, name: m.name, category: m.category, criticality: m.criticality, lifecycle: m.lifecycleStatus,
         openFaults: faults[0]?.n ?? 0, openWorkOrders: openWo[0]?.n ?? 0,
         lastCards: lastWo.map((w) => ({ number: w.number, status: w.status })),
+      },
+    };
+  },
+
+  /**
+   * THE pitch tool (sprint item 5): "show UKR chiller's last service and spend".
+   * Reads the item-1 history service — WO rollups + manual logbook — plus the
+   * item-2 notes surface, and answers with last SERVICE + lifetime/365-day SPEND.
+   * Every number is verbatim from the payload (kobo), so the phrasing LLM can
+   * only restate, never invent.
+   */
+  async machine_history(ctx: Ctx, args: { tag?: string | null }): Promise<AgentReply> {
+    const db = await getDb();
+    const tag = String(args.tag ?? "").trim();
+    if (!tag) {
+      return { text: "Which machine? Name its TAG (e.g. UKR-CH-01) or say something like “show UKR chiller's last service and spend”.", citations: [], via: "local" };
+    }
+    // exact tag/name first; contains-match as fallback (LLM may pass a partial name)
+    const rows = await db.select().from(machines)
+      .where(and(eq(machines.organizationId, ctx.orgId), or(ilike(machines.tag, tag), ilike(machines.name, tag))))
+      .limit(1);
+    const m = rows[0] ?? (await db
+      .select()
+      .from(machines)
+      .where(and(eq(machines.organizationId, ctx.orgId), or(ilike(machines.tag, `%${tag}%`), ilike(machines.name, `%${tag}%`))))
+      .limit(1))[0];
+    if (!m) return { text: `No machine matching "${tag}" in this workspace.`, citations: [], via: "local" };
+
+    const [history, notes] = await Promise.all([
+      maintenanceHistoryService.forMachine(ctx, m.id),
+      notesService.list(ctx, m.id),
+    ]);
+    const s = history.summary;
+
+    const lastService = s.lastServiceAt
+      ? `Last service: ${s.lastServiceAt.toISOString().slice(0, 10)} (${s.lastServiceWoNumber}).`
+      : "No concluded service on record yet.";
+    const spend =
+      `Lifetime spend: ${s.totalKobo} kobo ` +
+      `(labor ${s.laborKobo} + parts ${s.partsKobo} + manual log ${s.manualKobo}); ` +
+      `last 365 days: ${s.last365dKobo} kobo.`;
+    const manualTop = [...history.expenses]
+      .sort((a, b) => b.amountKobo - a.amountKobo)
+      .slice(0, 3)
+      .map((e) => `${e.kind} — ${e.description}: ${e.amountKobo} kobo`);
+    const expensiveCard = [...history.rows]
+      .filter((r) => r.costKobo > 0)
+      .sort((a, b) => b.costKobo - a.costKobo)[0];
+    const cards = `Cards: ${s.openWorkOrders} open, ${s.concludedWorkOrders} concluded${expensiveCard ? `. Biggest card: ${expensiveCard.wo.number} at ${expensiveCard.costKobo} kobo` : ""}.`;
+    const notesLine = notes.length
+      ? ` ${notes.length} note${notes.length === 1 ? "" : "s"} on file — latest: “${notes[0]?.title ?? ""}”.` // item-2 notes threaded through
+      : "";
+
+    const citations = [{ kind: "machine", id: m.id, label: m.tag }];
+    if (s.lastServiceWoNumber) {
+      const woRow = history.rows.find((r) => r.wo.number === s.lastServiceWoNumber);
+      if (woRow) citations.push({ kind: "wo", id: woRow.wo.id, label: woRow.wo.number });
+    }
+
+    return {
+      text: `${m.tag} (${m.name}). ${lastService} ${spend}${manualTop.length ? ` Manual log: ${manualTop.join("; ")}.` : ""} ${cards}${notesLine}`,
+      citations,
+      via: "local",
+      data: {
+        tag: m.tag,
+        name: m.name,
+        lastServiceAt: s.lastServiceAt ? s.lastServiceAt.toISOString().slice(0, 10) : null,
+        lastServiceWoNumber: s.lastServiceWoNumber,
+        spend: {
+          totalKobo: s.totalKobo, laborKobo: s.laborKobo, partsKobo: s.partsKobo,
+          manualKobo: s.manualKobo, last365dKobo: s.last365dKobo,
+        },
+        cards: { open: s.openWorkOrders, concluded: s.concludedWorkOrders, biggestCard: expensiveCard ? { number: expensiveCard.wo.number, costKobo: expensiveCard.costKobo } : null },
+        manualLog: manualTop,
+        notes: { count: notes.length, latestTitle: notes[0]?.title ?? null },
       },
     };
   },
@@ -573,6 +718,7 @@ export const agentTools = {
         "• “open faults” / “any critical alarms?” — fault list",
         "• “open work orders” — the live queue",
         "• “stock for BRG-6204?” — on-hand, reserved, available",
+        "• “show UKR chiller's last service and spend” — the machine's maintenance history: last service card, lifetime + 365-day spend, notes count",
         "• “cost last 30 days” — deterministic totals (same math as Reports)",
         "Writes are PROPOSED first — I show you exactly what will run, you press CONFIRM:",
         "• “create a work order for PUMP-3: replace DE bearing” (corrective by default; say preventive/inspection)",
